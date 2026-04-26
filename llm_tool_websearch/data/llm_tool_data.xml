@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <record id="llm_tool_web_search" model="llm.tool">
+        <field name="name">web_search</field>
+        <field name="description">Search the web and return a list of results with title, URL, and short description. This tool only lists relevant pages with limited information. You should always follow up with web_fetch on the most relevant URLs to get the actual page content before answering.</field>
+        <field name="implementation">web_search</field>
+        <field name="active" eval="True" />
+        <field name="is_default" eval="False" />
+        <field name="requires_user_consent" eval="False" />
+        <field name="read_only_hint" eval="True" />
+    </record>
+
+    <record id="llm_tool_web_fetch" model="llm.tool">
+        <field name="name">web_fetch</field>
+        <field name="description">Fetch one or more web pages and extract their main readable content. Accepts a list of URLs and fetches them in parallel. Use this after web_search to read the full content of relevant pages.</field>
+        <field name="implementation">web_fetch</field>
+        <field name="active" eval="True" />
+        <field name="is_default" eval="False" />
+        <field name="requires_user_consent" eval="False" />
+        <field name="read_only_hint" eval="True" />
+    </record>
+</odoo>

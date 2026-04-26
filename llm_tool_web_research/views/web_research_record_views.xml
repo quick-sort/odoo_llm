@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_web_research_record_list" model="ir.ui.view">
+        <field name="name">web.research.record.list</field>
+        <field name="model">web.research.record</field>
+        <field name="arch" type="xml">
+            <list string="Web Research Records" create="false">
+                <field name="create_date" string="Date"/>
+                <field name="query"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'done'"
+                       decoration-warning="state == 'running'"
+                       decoration-danger="state == 'error'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_web_research_record_form" model="ir.ui.view">
+        <field name="name">web.research.record.form</field>
+        <field name="model">web.research.record</field>
+        <field name="arch" type="xml">
+            <form string="Web Research Record" create="false" edit="false">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="query"/>
+                        <field name="thread_id"/>
+                        <field name="error_message" invisible="state != 'error'"/>
+                    </group>
+                    <notebook>
+                        <page string="Result">
+                            <field name="result" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_web_research_record" model="ir.actions.act_window">
+        <field name="name">Web Research Records</field>
+        <field name="res_model">web.research.record</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_web_research_record"
+              name="Web Research Records"
+              action="action_web_research_record"
+              parent="llm.menu_llm_config"
+              sequence="51"/>
+</odoo>
