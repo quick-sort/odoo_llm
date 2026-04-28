@@ -227,8 +227,7 @@ export const llmStoreService = {
 
       async loadLLMModels() {
         try {
-          // Check if llm.model exists first - use correct field names
-          const models = await orm.searchRead(
+          const models = await orm.silent.searchRead(
             "llm.model",
             [["active", "=", true]],
             ["id", "name", "provider_id", "is_default", "model_use"]
@@ -242,14 +241,12 @@ export const llmStoreService = {
             "LLM models not available - llm module may not be installed:",
             error.message
           );
-          // Don't throw error, just log warning
         }
       },
 
       async loadLLMProviders() {
         try {
-          // Check if llm.provider exists first - use correct field names
-          const providers = await orm.searchRead(
+          const providers = await orm.silent.searchRead(
             "llm.provider",
             [["active", "=", true]],
             ["id", "name", "service"]
@@ -263,21 +260,26 @@ export const llmStoreService = {
             "LLM providers not available - llm module may not be installed:",
             error.message
           );
-          // Don't throw error, just log warning
         }
       },
 
       async loadLLMTools() {
-        // Load available tools with minimal fields
-        const tools = await orm.searchRead(
-          "llm.tool",
-          [["active", "=", true]],
-          ["id", "name"]
-        );
+        try {
+          const tools = await orm.silent.searchRead(
+            "llm.tool",
+            [["active", "=", true]],
+            ["id", "name"]
+          );
 
-        tools.forEach((tool) => {
-          this.llmTools.set(tool.id, tool);
-        });
+          tools.forEach((tool) => {
+            this.llmTools.set(tool.id, tool);
+          });
+        } catch (error) {
+          console.warn(
+            "LLM tools not available:",
+            error.message
+          );
+        }
       },
 
       // Thread selection using standard Odoo patterns

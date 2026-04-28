@@ -40,7 +40,7 @@ patch(llmStoreService, {
     Object.assign(llmStore, {
       async loadLLMAssistants() {
         try {
-          const assistants = await orm.searchRead(
+          const assistants = await orm.silent.searchRead(
             "llm.assistant",
             [["active", "=", true]],
             ["id", "name", "is_public", "provider_id", "model_id", "tool_ids"]
