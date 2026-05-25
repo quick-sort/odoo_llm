@@ -674,24 +674,29 @@ class LLMThread(models.Model):
                 thread_data["res_id"] = thread.res_id
 
             # Add LLM-specific fields using proper Store.one/Store.many format
+            # sudo() is required: these config models restrict read access to
+            # LLM Manager/User groups, but any user running a workflow that
+            # creates an llm.thread needs their display names for the UI.
             if thread.provider_id:
+                provider = thread.provider_id.sudo()
                 thread_data["provider_id"] = {
-                    "id": thread.provider_id.id,
-                    "name": thread.provider_id.name,
+                    "id": provider.id,
+                    "name": provider.name,
                     "model": "llm.provider",
                 }
 
             if thread.model_id:
+                model = thread.model_id.sudo()
                 thread_data["model_id"] = {
-                    "id": thread.model_id.id,
-                    "name": thread.model_id.name,
+                    "id": model.id,
+                    "name": model.name,
                     "model": "llm.model",
                 }
 
             if thread.tool_ids:
                 thread_data["tool_ids"] = [
                     {"id": tool.id, "name": tool.name, "model": "llm.tool"}
-                    for tool in thread.tool_ids
+                    for tool in thread.tool_ids.sudo()
                 ]
 
             store.add_model_values("mail.thread", thread_data)
