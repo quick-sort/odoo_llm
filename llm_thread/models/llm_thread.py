@@ -285,10 +285,17 @@ class LLMThread(models.Model):
         """Process body content for LLM messages (markdown to HTML conversion).
 
         Skips processing if body is already Markup (pre-formatted HTML).
+
+        Emoji normalization: round-trip through demojize → emojize so that both
+        unicode emoji (🔹) and shortcodes (`:small_blue_diamond:`) end up as
+        the same unicode emoji in the rendered output. Without the second
+        ``emojize`` step, ``demojize`` alone would leave raw ``:shortcode:``
+        text in the HTML.
         """
         if not body or isinstance(body, Markup):
             return body
-        return markdown2.markdown(emoji.demojize(body), extras=["tables"])
+        normalized = emoji.emojize(emoji.demojize(body))
+        return markdown2.markdown(normalized, extras=["tables"])
 
     # ============================================================================
     # STREAMING MESSAGE CREATION

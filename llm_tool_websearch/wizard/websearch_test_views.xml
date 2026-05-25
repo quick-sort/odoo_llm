@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_websearch_test_form" model="ir.ui.view">
+        <field name="name">llm.websearch.test.form</field>
+        <field name="model">llm.websearch.test</field>
+        <field name="arch" type="xml">
+            <form string="Web Search Config">
+                <sheet>
+                    <group string="API Keys">
+                        <field name="brave_api_key" password="True"/>
+                        <field name="brave_proxy" placeholder="http://user:pass@host:port"/>
+                        <field name="brightdata_api_key" password="True"/>
+                        <field name="brightdata_zone"/>
+                    </group>
+                    <group string="Query">
+                        <field name="query" nolabel="1" colspan="2" placeholder="Enter a research question or URLs (one per line for Fetch)"/>
+                    </group>
+                    <div class="text-center mb-3">
+                        <button name="action_research" type="object" string="Research" class="btn-primary me-2"/>
+                        <button name="action_research_async" type="object" string="Research (Async)" class="btn-primary me-2"/>
+                        <button name="action_search" type="object" string="Search" class="btn-secondary me-2"/>
+                        <button name="action_fetch" type="object" string="Fetch" class="btn-secondary"/>
+                    </div>
+                    <group string="Result">
+                        <field name="result" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_websearch_test" model="ir.actions.act_window">
+        <field name="name">Web Search Config</field>
+        <field name="res_model">llm.websearch.test</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+    </record>
+
+    <menuitem id="menu_websearch_test"
+              name="Web Search"
+              action="action_websearch_test"
+              parent="llm.menu_llm_config"
+              sequence="50"/>
+</odoo>

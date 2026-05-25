@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <record id="screen_result_list" model="ir.ui.view">
+            <field name="name">screen.result.list</field>
+            <field name="model">screen.result</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="id"/>
+                    <field name="profile_id"/>
+                    <field name="res_model"/>
+                    <field name="res_id"/>
+                    <field name="state"/>
+                    <field name="overall_status"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="screen_result_form" model="ir.ui.view">
+            <field name="name">screen.result.form</field>
+            <field name="model">screen.result</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <field name="state" widget="statusbar"
+                               statusbar_visible="draft,running,done"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="profile_id" readonly="id != False"
+                                       options="{'no_create': True, 'no_open': True}"/>
+                                <field name="overall_status" widget="badge"
+                                       decoration-success="overall_status == 'pass'"
+                                       decoration-danger="overall_status == 'fail'"
+                                       decoration-warning="overall_status == 'needs_info'"
+                                       decoration-muted="overall_status == 'not_applicable'"/>
+                            </group>
+                            <group>
+                                <field name="res_model" readonly="id != False"/>
+                                <field name="res_id" readonly="id != False"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Items" name="items">
+                                <field name="item_ids">
+                                    <list editable="bottom">
+                                        <field name="sequence" column_invisible="True"/>
+                                        <field name="rule_name" readonly="1"/>
+                                        <field name="requirement" readonly="1"/>
+                                        <field name="is_required" readonly="1" widget="boolean_toggle"/>
+                                        <field name="status" widget="badge"
+                                               decoration-success="status == 'pass'"
+                                               decoration-danger="status == 'fail'"
+                                               decoration-warning="status == 'needs_info'"
+                                               decoration-muted="status == 'not_applicable'"/>
+                                        <field name="reasoning"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Material" name="material">
+                                <field name="material" nolabel="1" widget="text"/>
+                            </page>
+                            <page string="Summary" name="summary">
+                                <field name="summary" nolabel="1"/>
+                            </page>
+                            <page string="Error" name="error" invisible="state != 'failed'">
+                                <field name="error_message" nolabel="1" readonly="1"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="screen_result_search" model="ir.ui.view">
+            <field name="name">screen.result.search</field>
+            <field name="model">screen.result</field>
+            <field name="arch" type="xml">
+                <search>
+                    <field name="profile_id"/>
+                    <field name="res_model"/>
+                    <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                    <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+                    <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
+                    <filter string="Profile" name="group_by_profile" context="{'group_by': 'profile_id'}"/>
+                    <filter string="Model" name="group_by_model" context="{'group_by': 'res_model'}"/>
+                    <filter string="State" name="group_by_state" context="{'group_by': 'state'}"/>
+                </search>
+            </field>
+        </record>
+
+        <record id="action_screen_result" model="ir.actions.act_window">
+            <field name="name">Screening Results</field>
+            <field name="res_model">screen.result</field>
+            <field name="view_mode">list,form</field>
+        </record>
+    </data>
+</odoo>

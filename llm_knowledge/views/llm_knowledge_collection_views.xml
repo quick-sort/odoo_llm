@@ -217,7 +217,12 @@
           name="inactive"
           domain="[('active', '=', False)]"
         />
-                <filter string="Embedding Model" name="group_by_model" domain="[]" context="{'group_by':'embedding_model_id'}"/>
+                <filter
+          string="Embedding Model"
+          name="group_by_model"
+          domain="[]"
+          context="{'group_by':'embedding_model_id'}"
+        />
             </search>
         </field>
     </record>

@@ -63,8 +63,8 @@ class PgVector(fields.Field):
 
     def create_column(self, cr, table, column, **kwargs):
         """Create a vector column in the database."""
-        # Register vector with this cursor's connection (Odoo 19 compatibility)
-        register_vector(cr._cnx)
+        # Register vector with this cursor
+        register_vector(cr)
 
         # Specify dimensions if provided
         dim_spec = f"({self.dimension})" if self.dimension else ""

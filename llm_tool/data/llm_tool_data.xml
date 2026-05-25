@@ -1,11 +1,79 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<odoo noupdate="1">
+<odoo noupdate="0">
     <record id="llm_tool_odoo_record_retriever" model="llm.tool">
         <field name="name">odoo_record_retriever</field>
         <field name="implementation">odoo_record_retriever</field>
-        <field
-      name="description"
-    >Retrieve records from any Odoo model with filtering capabilities. This tool allows you to fetch data from the database by specifying the model name, domain filters, fields to retrieve, and a limit on the number of records returned.</field>
+        <field name="description"><![CDATA[Retrieve records from any Odoo model with filtering capabilities. Wraps Odoo's search_read.
+
+## Parameters
+
+- `model` (str, required): Odoo model technical name (e.g. "res.partner", "sale.order").
+- `domain` (list, default []): Odoo domain filter. Each condition is a 3-element list `[field, operator, value]`. Conditions are AND-ed by default; use `"|"` (OR) or `"!"` (NOT) prefix operators to combine.
+- `fields` (list[str], default all): Field names to return. Specify a small subset to save tokens.
+- `limit` (int, default 100): Max records to return. Use small values when exploring.
+
+## Domain Operators
+
+Comparison: `"="`, `"!="`, `">"`, `">="`, `"<"`, `"<="`
+Set membership: `"in"`, `"not in"` (with a list value)
+Text match: `"like"`, `"not like"`, `"ilike"` (case-insensitive, **the usual choice for text**), `"not ilike"`, `"=ilike"` (full match, supports `%` and `_` wildcards)
+Existence: `"=?"` (treats False as match-any)
+Many2one path: use dotted field: `["partner_id.country_id.code", "=", "US"]`
+Polymorphic / Many2many "child of" hierarchy: `"child_of"`, `"parent_of"`
+
+## Domain Logical Operators (Polish notation, prefix the AND/OR they group)
+
+- `"&"` AND of next 2 conditions (implicit between adjacent conditions)
+- `"|"` OR of next 2 conditions
+- `"!"` NOT of next 1 condition
+
+Examples:
+- `["|", ["state", "=", "draft"], ["state", "=", "sent"]]` — state is draft OR sent
+- `["&", "|", ["a","=",1], ["b","=",2], ["c","=",3]]` — (a=1 OR b=2) AND c=3
+- `["!", ["active", "=", True]]` — active is not True
+
+## Common Query Patterns
+
+1) Get all active partners with name like 'pharma':
+   `{"model": "res.partner", "domain": [["active","=",True], ["name","ilike","pharma"]], "fields": ["id","name","email"], "limit": 50}`
+
+2) Recent sale orders this year:
+   `{"model": "sale.order", "domain": [["date_order",">=","2026-01-01"], ["state","in",["sale","done"]]], "fields": ["id","name","amount_total","partner_id"], "limit": 20}`
+
+3) Find by Many2one related field name (dotted path):
+   `{"model": "res.users", "domain": [["partner_id.country_id.code","=","CN"]], "fields": ["id","name","login"]}`
+
+4) Filter Many2many via 'in' (matches if ANY id is associated):
+   `{"model": "res.partner", "domain": [["category_id","in",[1,2,3]]], "fields": ["id","name","category_id"]}`
+
+5) Empty / not-set field (works for any optional field):
+   `{"model": "sale.order", "domain": [["partner_invoice_id","=",False]], "limit": 10}`
+
+6) Boolean OR across two text fields:
+   `{"model": "res.partner", "domain": ["|", ["name","ilike","acme"], ["company_name","ilike","acme"]], "fields": ["id","name","company_name"]}`
+
+7) Date range (Char date-string comparison works for date/datetime fields):
+   `{"model": "mail.message", "domain": [["date",">=","2026-05-01"], ["date","<","2026-06-01"]], "fields": ["id","subject","date"], "limit": 100}`
+
+8) Count-like check (limit=1 to test existence):
+   `{"model": "res.partner", "domain": [["email","=","x@y.com"]], "fields": ["id"], "limit": 1}` — empty list ⇒ no match.
+
+9) Selection field exact match:
+   `{"model": "sale.order", "domain": [["state","=","sale"]], "fields": ["id","name"]}`  (use the Selection KEY, not the label)
+
+10) Find records updated after a timestamp:
+    `{"model": "res.partner", "domain": [["write_date",">","2026-05-20 00:00:00"]], "fields": ["id","name","write_date"]}`
+
+## Tips
+
+- Always specify `fields` for known queries — saves tokens and response size.
+- For text search, `"ilike"` is almost always what you want (case-insensitive contains).
+- For Many2one fields, the value returned is `[id, display_name]`; pass the integer `id` (or use a dotted path on the related model).
+- For Selection fields, use the technical key (e.g. `"sale"`), not the label (e.g. `"Sales Order"`).
+- For Many2many / One2many fields, the value returned is a list of ids.
+- Dates: pass `"YYYY-MM-DD"` for Date fields, `"YYYY-MM-DD HH:MM:SS"` for Datetime fields.
+- If you're unsure of a model's field names or selection values, use `odoo_model_inspector` first.
+- Limit high (e.g. 1000) only when you actually need all rows — large results consume tokens fast.]]></field>
         <field name="is_default" eval="True" />
         <field name="active" eval="True" />
         <field name="requires_user_consent" eval="False" />
@@ -25,6 +93,9 @@ Examples:
 1. Single record: {"model": "res.partner", "fields": {"name": "John Doe", "email": "john@example.com"}}
 2. Multiple records: {"model": "res.partner", "records": [{"name": "John Doe", "email": "john@example.com"}, {"name": "Jane Smith", "email": "jane@example.com"}]}
 
+REQUIREMENT — schema first:
+If you do not already know the target model's schema (which fields are required / readonly, which are Selection with what keys, which are Many2one to what target model), you MUST call `odoo_model_inspector` first to fetch it. Do not guess field names, do not invent Selection keys, do not pass a name where an id is expected. A failed create wastes a tool call AND an LLM round-trip — one cheap inspector call upfront prevents both.
+
 Due to its data modification capabilities, this tool requires user consent before execution.</field>
         <field name="is_default" eval="True" />
         <field name="active" eval="True" />
@@ -34,9 +105,128 @@ Due to its data modification capabilities, this tool requires user consent befor
     <record id="llm_tool_odoo_record_updater" model="llm.tool">
         <field name="name">odoo_record_updater</field>
         <field name="implementation">odoo_record_updater</field>
-        <field
-      name="description"
-    >Update existing records in any Odoo model. This tool allows you to modify data in the database by specifying the model name, domain filters to identify records, and a dictionary of field values to update. For safety, it defaults to updating only one record at a time. Due to its data modification capabilities, this tool requires user consent before execution.</field>
+        <field name="description"><![CDATA[Update existing records in any Odoo model. Targets records by **id only**, applies the `values` dict. Defaults to **limit=1** for safety — set explicitly when you want to update multiple rows. Requires user consent.
+
+REQUIREMENT — schema first:
+If you do not already know the target model's schema (which fields are writable / readonly, which are Selection with what keys, which are Many2one to what target model, Many2many command syntax), you MUST call `odoo_model_inspector` first to fetch it. Do not guess field names, do not invent Selection keys, do not pass a name where an id is expected. A failed update wastes a tool call AND an LLM round-trip — one cheap inspector call upfront prevents both. The `values` parameter is required and non-empty; omitting it is a schema mistake that the inspector would have caught.
+
+## Parameters
+
+- `model` (str, required): Odoo model technical name (e.g. "res.partner", "sale.order").
+- `domain` (list, required): **Must filter by `id` only.** Either single-id or id-list — no other operators or fields are allowed here. If you don't know the id yet, use `odoo_record_retriever` first to find it.
+- `values` (dict, required): Field-name → new-value pairs to write.
+- `limit` (int, default 1): Safety cap on how many records can be updated.
+
+## Domain — id filter only
+
+Allowed forms (only these two):
+
+- Single record: `[["id", "=", 42]]`
+- Multiple records: `[["id", "in", [42, 91, 184]]]` (and set `limit` ≥ list length)
+
+NOT allowed in this tool (use retriever first to look up the id, then pass id here):
+- Filtering by name / state / email / any other field
+- Dotted paths (`partner_id.country_id.code`)
+- OR/NOT operators
+- `ilike` / `like` text search
+
+This restriction prevents wrong-record bulk updates.
+
+## Values dict
+
+For most field types, just `field: value`:
+```json
+{"name": "Updated", "active": false, "amount_total": 1234.5, "date_order": "2026-05-21"}
+```
+
+For Many2one, pass the integer id (not a record dict, not a name):
+```json
+{"partner_id": 42, "user_id": 7}
+```
+To clear: `{"partner_id": false}`.
+
+For Selection fields, pass the technical KEY (not the label):
+```json
+{"state": "sale", "priority": "1"}
+```
+
+## Many2many command syntax
+
+Many2many updates use **command tuples** wrapped in a list. Each command is `[code, id, values]`.
+
+| Code | Form | Meaning |
+|---|---|---|
+| `3` | `[3, id, 0]` | Unlink (remove association, keep the linked record) |
+| `4` | `[4, id, 0]` | Link (add to set; idempotent) |
+| `5` | `[5, 0, 0]` | Clear all associations (no delete of linked records) |
+| `6` | `[6, 0, [id1, id2, ...]]` | Replace the set with this exact list |
+
+### Many2many examples
+
+Add tag id=5 to partner id=42 (preserves other tags):
+```json
+{"model": "res.partner", "domain": [["id","=",42]], "values": {"category_id": [[4, 5, 0]]}}
+```
+
+Replace partner's tags with exactly [1, 2, 3] (drops all others):
+```json
+{"model": "res.partner", "domain": [["id","=",42]], "values": {"category_id": [[6, 0, [1, 2, 3]]]}}
+```
+
+Remove tag id=5 from partner id=42 (does not delete the tag record itself):
+```json
+{"model": "res.partner", "domain": [["id","=",42]], "values": {"category_id": [[3, 5, 0]]}}
+```
+
+Clear all tags:
+```json
+{"model": "res.partner", "domain": [["id","=",42]], "values": {"category_id": [[5, 0, 0]]}}
+```
+
+Combine: add tag 5 AND remove tag 9 in one call:
+```json
+{"model": "res.partner", "domain": [["id","=",42]], "values": {"category_id": [[4, 5, 0], [3, 9, 0]]}}
+```
+
+## One2many — do NOT operate from this side
+
+Don't try to add / update / delete One2many children via the parent. Operate **on the child model directly** instead:
+- To create a child: call `odoo_record_creator` on the child model with the parent's id in the inverse field.
+- To update a child: call `odoo_record_updater` on the child model with the child's id.
+- To delete a child: call `odoo_record_unlinker` on the child model with the child's id.
+
+Example: instead of "add an order line to sale.order id=10", create directly on `sale.order.line`:
+```json
+{"model": "sale.order.line", "fields": {"order_id": 10, "product_id": 1, "product_uom_qty": 2}}
+```
+(via `odoo_record_creator`)
+
+## Common Update Patterns
+
+1) Mark a record inactive:
+   `{"model": "res.partner", "domain": [["id","=",42]], "values": {"active": false}}`
+
+2) Bulk-update fields on a known set of ids (explicit `limit`):
+   `{"model": "sale.order", "domain": [["id","in",[10,11,12]]], "values": {"user_id": 7}, "limit": 3}`
+
+3) Change Many2one + Selection in one call:
+   `{"model": "opportunity.opportunity", "domain": [["id","=",91]], "values": {"therapeutic_area": 3, "decision": "go"}}`
+
+4) Clear an optional Many2one:
+   `{"model": "res.partner", "domain": [["id","=",42]], "values": {"parent_id": false}}`
+
+5) Date update:
+   `{"model": "sale.order", "domain": [["id","=",10]], "values": {"date_order": "2026-05-21 09:30:00"}}`
+
+## Tips & Safety
+
+- **Look up ids with `odoo_record_retriever` first**, then pass them here. This tool only accepts id-based domains by design.
+- Default `limit=1` protects against runaway updates. When using `["id","in",[...]]`, set `limit` to match the list length.
+- For Selection fields, use the technical KEY (e.g. `"sale"`), not the label (e.g. `"Sales Order"`).
+- For Many2one, pass an int id (or `false` to clear). Don't pass a name or display string.
+- For Many2many, `[[4, id, 0]]` is **add-only** — much safer than `[[6, 0, [...]]]` which replaces the whole set.
+- For One2many children, operate on the child model directly (see "One2many" section above).
+- If unsure about field type / required flags / selection keys, use `odoo_model_inspector` first.]]></field>
         <field name="is_default" eval="True" />
         <field name="active" eval="True" />
         <field name="requires_user_consent" eval="True" />
@@ -91,6 +281,12 @@ Returns a JSON representation of the method's result or an error message.
             - Building domain filters for record retrieval
 
             Perfect for exploring unfamiliar models before performing operations on them.
+
+            NOTE — finding the model name:
+            If you don't already know the exact technical model name (e.g. "res.partner", "sale.order.line"), look it up in the `ir.model` registry first via `odoo_record_retriever`. Search by `name` (human-readable label) or by `model` (technical name) with `ilike`:
+              {"model": "ir.model", "domain": [["name", "ilike", "partner"]], "fields": ["model", "name"], "limit": 20}
+              {"model": "ir.model", "domain": [["model", "ilike", "sale.order"]], "fields": ["model", "name"], "limit": 20}
+            Pick the right technical `model` value from the results, then pass it to `odoo_model_inspector`.
         ]]></field>
         <field name="is_default" eval="True" />
         <field name="active" eval="True" />

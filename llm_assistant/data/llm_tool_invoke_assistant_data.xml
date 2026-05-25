@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="0">
+
+    <record id="llm_tool_invoke_assistant" model="llm.tool">
+        <field name="name">invoke_assistant</field>
+        <field name="description">Delegate a sub-task to another assistant identified by its code. The sub-assistant runs in an isolated transaction with its own thread and tool execution lifecycle, then returns its final answer. Use this to compose specialized assistants — pass the target assistant's code and a natural-language instruction.</field>
+        <field name="implementation">invoke_assistant</field>
+        <field name="active" eval="True" />
+        <field name="is_default" eval="False" />
+        <field name="requires_user_consent" eval="False" />
+        <field name="read_only_hint" eval="False" />
+    </record>
+
+</odoo>

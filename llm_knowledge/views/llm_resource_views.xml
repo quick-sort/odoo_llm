@@ -372,9 +372,24 @@
           name="locked"
           domain="[('lock_date', '!=', False)]"
         />
-                <filter string="State" name="group_by_state" domain="[]" context="{'group_by':'state'}"/>
-                <filter string="Model" name="group_by_model" domain="[]" context="{'group_by':'model_id'}"/>
-                <filter string="Collection" name="group_by_collection" domain="[]" context="{'group_by':'collection_ids'}"/>
+                <filter
+          string="State"
+          name="group_by_state"
+          domain="[]"
+          context="{'group_by':'state'}"
+        />
+                <filter
+          string="Model"
+          name="group_by_model"
+          domain="[]"
+          context="{'group_by':'model_id'}"
+        />
+                <filter
+          string="Collection"
+          name="group_by_collection"
+          domain="[]"
+          context="{'group_by':'collection_ids'}"
+        />
             </search>
         </field>
     </record>

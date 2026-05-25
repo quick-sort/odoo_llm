@@ -38,16 +38,15 @@ class LLMToolWebSearch(models.Model):
             query: The search query string.
             num_results: Number of results to return (max 20).
         """
-        api_key = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param("llm_tool_websearch.brave_api_key")
-        )
+        params = self.env["ir.config_parameter"].sudo()
+        api_key = params.get_param("llm_tool_websearch.brave_api_key")
         if not api_key:
             return {
                 "error": "Brave Search API key not configured. "
                 "Set system parameter: llm_tool_websearch.brave_api_key"
             }
+        proxy = params.get_param("llm_tool_websearch.brave_proxy") or None
+        proxies = {"http": proxy, "https": proxy} if proxy else None
 
         num_results = min(num_results, 20)
         try:
@@ -59,6 +58,7 @@ class LLMToolWebSearch(models.Model):
                     "Accept-Encoding": "gzip",
                     "X-Subscription-Token": api_key,
                 },
+                proxies=proxies,
                 timeout=15,
             )
             resp.raise_for_status()

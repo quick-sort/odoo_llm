@@ -46,7 +46,6 @@
                 <field name="collection_ids" />
 
                 <!-- Similarity threshold filters -->
-                <separator string="Similarity Threshold" />
                 <filter
           string="High Similarity (0.75)"
           name="similarity_high"
@@ -64,7 +63,6 @@
         />
 
                 <!-- Vector search operator filters -->
-                <separator string="Search Method" />
                 <filter
           string="Cosine Similarity(&lt;=&gt;)"
           name="operator_cosine"

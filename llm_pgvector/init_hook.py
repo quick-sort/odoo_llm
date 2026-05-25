@@ -1,6 +1,5 @@
 import logging
 
-from pgvector.psycopg2 import register_vector
 from psycopg2.errors import UndefinedObject
 
 _logger = logging.getLogger(__name__)
@@ -52,10 +51,6 @@ def pre_init_hook(env):
             raise Exception(
                 "Vector type not available. Something is wrong with the pgvector installation."
             ) from e
-
-        # Register pgvector with the connection (Odoo 19 compatibility)
-        register_vector(cr._cnx)
-        _logger.info("Registered pgvector with database connection")
 
     except Exception as e:
         if not isinstance(e, UndefinedObject):

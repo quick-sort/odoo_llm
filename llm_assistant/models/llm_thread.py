@@ -256,6 +256,14 @@ class LLMThread(models.Model):
                     # No user message in prepended messages either
                     raise
 
+        # Cap on consecutive assistant→tool→assistant rounds. Without it the
+        # model can spam tool calls indefinitely (the field on llm.assistant
+        # existed but was never enforced before this guard was added).
+        tool_call_rounds = 0
+        max_tool_call_rounds = (
+            self.assistant_id.tool_calls_max if self.assistant_id else 0
+        )
+
         # Continue generation loop
         while self._should_continue(last_message):
             if last_message.llm_role in ("user", "tool"):
@@ -273,7 +281,32 @@ class LLMThread(models.Model):
                         last_message,
                     )
                     last_message = tool_message
-                    self.env.cr.commit()
+                    # Flush so the next LLM round-trip sees the tool result.
+                    # Commit cadence is the caller's responsibility (HTTP controller
+                    # commits on SSE events; queue_job commits at job end; nested
+                    # tool callers may run inside a savepoint).
+                    self.env.flush_all()
+
+                tool_call_rounds += 1
+                if max_tool_call_rounds and tool_call_rounds >= max_tool_call_rounds:
+                    assistant_label = (
+                        self.assistant_id.code or self.assistant_id.name
+                        if self.assistant_id else "<no assistant>"
+                    )
+                    _logger.warning(
+                        "[generate_messages] thread_id=%d assistant=%r hit "
+                        "tool_calls_max=%d after %d round(s); breaking loop. "
+                        "The model will not be called again for this turn.",
+                        self.id, assistant_label,
+                        max_tool_call_rounds, tool_call_rounds,
+                    )
+                    yield {
+                        "type": "limit_reached",
+                        "reason": "tool_calls_max",
+                        "limit": max_tool_call_rounds,
+                        "rounds_executed": tool_call_rounds,
+                    }
+                    break
             else:
                 _logger.info(
                     f"Breaking loop. Last message role: {last_message.llm_role}, "
@@ -456,10 +489,16 @@ class LLMThread(models.Model):
                 yield {"type": "error", "error": chunk["error"]}
                 return message
 
-        # CRITICAL FIX: Create assistant message IMMEDIATELY if we have tool calls
+        # Build body_json — preserve raw markdown content alongside any
+        # tool_calls so callers (invoke / dispatch result extraction) can get
+        # the un-HTMLified text back without round-tripping through html2text.
+        body_json = {}
+        if accumulated_content:
+            body_json["content"] = accumulated_content
         if collected_tool_calls:
-            body_json = {"tool_calls": collected_tool_calls}
+            body_json["tool_calls"] = collected_tool_calls
 
+        if collected_tool_calls:
             if not message:
                 # Create assistant message with body_json (handled by message_post override)
                 message = self.message_post(
@@ -468,18 +507,22 @@ class LLMThread(models.Model):
                     llm_role="assistant",
                     author_id=False,
                 )
-                # Commit to ensure message is saved before tool execution
-                self.env.cr.commit()
+                # Flush so the about-to-execute tool can read the message via SQL.
+                self.env.flush_all()
                 yield {"type": "message_create", "message": message.to_store_format()}
             else:
-                # Update existing message with tool calls
+                # Update existing message with tool calls (and raw content if any)
                 message.write({"body_json": body_json})
-                # Commit to ensure update is saved
-                self.env.cr.commit()
+                self.env.flush_all()
                 yield {"type": "message_update", "message": message.to_store_format()}
         elif message and accumulated_content:
-            # Final update for assistant message without tool calls
-            message.write({"body": self._process_llm_body(accumulated_content)})
+            # Final update for assistant message without tool calls — write
+            # both the rendered HTML body (for UI) and the raw markdown content
+            # (in body_json, for programmatic callers).
+            message.write({
+                "body": self._process_llm_body(accumulated_content),
+                "body_json": body_json,
+            })
             yield {"type": "message_update", "message": message.to_store_format()}
 
         return message
@@ -493,13 +536,18 @@ class LLMThread(models.Model):
         if not content and not tool_calls:
             content = "No response from model"
 
-        # Prepare body_json with tool calls if present
-        body_json = {"tool_calls": tool_calls} if tool_calls else None
+        # body_json carries raw markdown content (for programmatic callers)
+        # and/or tool_calls.
+        body_json = {}
+        if content:
+            body_json["content"] = content
+        if tool_calls:
+            body_json["tool_calls"] = tool_calls
 
         # Create assistant message with body_json (handled by message_post override)
         assistant_message = self.message_post(
             body=self._process_llm_body(content) if content else "",
-            body_json=body_json,
+            body_json=body_json or None,
             llm_role="assistant",
             author_id=False,
         )

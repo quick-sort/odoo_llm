@@ -26,7 +26,7 @@ Key Features:
 Use cases include creating specialized assistants for customer support, data analysis, training assistance, and more.
     """,
     "category": "Productivity, Discuss",
-    "version": "19.0.1.5.4",
+    "version": "19.0.1.5.5",
     "depends": [
         "base",
         "mail",
@@ -47,6 +47,7 @@ Use cases include creating specialized assistants for customer support, data ana
         "data/llm_prompt_category_data.xml",
         "data/llm_prompt_export_data.xml",
         "data/llm_prompt_data.xml",
+        "data/llm_tool_invoke_assistant_data.xml",
         "data/llm_assistant_data.xml",
         "views/llm_prompt_views.xml",
         "views/llm_prompt_tag_views.xml",

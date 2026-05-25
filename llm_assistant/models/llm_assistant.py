@@ -1,7 +1,9 @@
 import json
 import logging
+import time
 
 from odoo import api, fields, models
+from odoo.modules.registry import Registry
 
 from ..utils import render_template
 
@@ -544,3 +546,175 @@ class LLMAssistant(models.Model):
     def get_assistant_by_code(self, code):
         """Get assistant by code"""
         return self.search([("code", "=", code)], limit=1)
+
+    def _run_in_thread(self, query, thread_vals=None):
+        """Internal: create a sub-thread, run generate, return result dict.
+
+        Runs on whatever env ``self`` is bound to — caller decides the
+        transaction policy. Used by ``invoke`` with both ``new_cursor=True``
+        (after switching to a new cursor) and ``new_cursor=False`` (current
+        cursor / queue_job entries).
+
+        Returns a dict with ``query``, ``result``, ``error``, ``thread_id``.
+        """
+        self.ensure_one()
+        code = self.code or self.name
+        depth = self.env.context.get("llm_invoke_assistant_depth", 0)
+        new_cursor = self.env.context.get("llm_invoke_as_subthread", False)
+        vals = {
+            "provider_id": self.provider_id.id,
+            "model_id": self.model_id.id,
+        }
+        if thread_vals:
+            vals.update(thread_vals)
+
+        thread = self.env["llm.thread"].create(vals)
+        thread.set_assistant(self.id)
+
+        _logger.info(
+            "[assistant.run] START code=%r thread_id=%d depth=%d "
+            "isolated_cursor=%s query_len=%d",
+            code, thread.id, depth, new_cursor, len(query or ""),
+        )
+
+        error = None
+        start = time.monotonic()
+        try:
+            for _event in thread.generate(user_message_body=query):
+                pass
+        except Exception as e:
+            _logger.exception(
+                "Error running assistant '%s' (thread %s)", code, thread.id,
+            )
+            error = str(e)
+        elapsed = time.monotonic() - start
+
+        _logger.info(
+            "[assistant.run] END   code=%r thread_id=%d elapsed=%.1fs error=%s",
+            code, thread.id, elapsed, error,
+        )
+
+        # Latest message on the sub-thread. flush_all first so any pending
+        # body / body_json writes from generate are visible to search.
+        self.env.flush_all()
+        message = self.env["mail.message"].search([
+            ("model", "=", "llm.thread"),
+            ("res_id", "=", thread.id),
+        ], order="id desc", limit=1)
+
+        _logger.info(
+            "[assistant.run] result lookup code=%r thread_id=%d found_message_id=%s "
+            "llm_role=%s body_len=%s",
+            code, thread.id,
+            message.id if message else None,
+            message.llm_role if message else None,
+            len(message.body or "") if message else None,
+        )
+
+        result = None
+        result_html = None
+        if message:
+            # `result` is the raw markdown stashed in body_json by the
+            # streaming/non-streaming handlers — this is the form most
+            # programmatic callers (and downstream assistants in chained
+            # invocations) want, since HTML re-rendering would otherwise
+            # need to be stripped or re-parsed.
+            #
+            # `result_html` exposes the already-rendered HTML (mail.message
+            # `body`) for callers that bind the output to a ``fields.Html``
+            # column — they would otherwise have to re-run a markdown->HTML
+            # converter themselves.
+            raw = (
+                message.body_json.get("content")
+                if isinstance(message.body_json, dict)
+                else None
+            )
+            if raw:
+                result = raw
+            elif message.body:
+                result = str(message.body)
+            if message.body:
+                result_html = str(message.body)
+        elif not error:
+            result = "No result."
+
+        return {
+            "query": query,
+            "result": result,
+            "result_html": result_html,
+            "error": error,
+            "thread_id": thread.id,
+        }
+
+    def invoke(self, query, parent_context=None, thread_vals=None, new_cursor=True):
+        """Run this assistant on a sub-thread.
+
+        The assistant body in ``llm.thread.generate_messages`` never commits —
+        it only flushes — so it composes with any caller's transaction policy.
+        ``invoke`` exposes two transaction modes via ``new_cursor``:
+
+        - ``new_cursor=True`` (default) — open a fresh cursor for the sub-run.
+          Use this when called from inside another tool / assistant. Reasons:
+
+          * The outer caller is inside ``mail.message._execute_tool``'s
+            savepoint; any commit on the shared cursor would destroy that
+            savepoint stack.
+          * The inner conversation needs its own persistence lifecycle so its
+            side effects survive independently of the outer turn (the user
+            has already paid the LLM / tool cost).
+
+        - ``new_cursor=False`` — run on the caller's cursor. Use this from
+          queue_job entry points: the job owns the transaction boundary, and
+          its all-or-nothing commit semantics are preserved (clean retry on
+          failure, no orphan data from independent sub-commits).
+
+        Args:
+            query: Natural-language instruction sent as the first user message.
+            parent_context: Extra context keys merged into the sub-env (only
+                applied when ``new_cursor=True``; with ``new_cursor=False``
+                the caller's env is used as-is).
+            thread_vals: Extra fields merged into the sub-thread create dict
+                (e.g. ``{"model": "...", "res_id": ...}`` to link the thread
+                to a parent record).
+            new_cursor: True to open an isolated cursor, False to share the
+                caller's cursor. Default True.
+
+        Returns:
+            See ``_run_in_thread`` for the dict shape.
+        """
+        self.ensure_one()
+
+        if not new_cursor:
+            return self._run_in_thread(query, thread_vals=thread_vals)
+
+        context = {
+            **self.env.context,
+            **(parent_context or {}),
+            "llm_invoke_as_subthread": True,
+        }
+        with Registry(self.env.cr.dbname).cursor() as cr:
+            env = api.Environment(cr, self.env.uid, context)
+            return self.with_env(env)._run_in_thread(query, thread_vals=thread_vals)
+
+    @api.model
+    def invoke_assistant(self, assistant_code, query, parent_context=None,
+                         thread_vals=None, new_cursor=True):
+        """Look up an assistant by code and run it.
+
+        Convenience wrapper: ``get_assistant_by_code`` + ``invoke``. See
+        ``invoke`` for transaction semantics and the ``new_cursor`` flag.
+        """
+        assistant = self.get_assistant_by_code(assistant_code)
+        if not assistant:
+            return {
+                "query": query,
+                "result": None,
+                "error": f"Assistant with code '{assistant_code}' not found.",
+                "thread_id": None,
+            }
+        return assistant.invoke(
+            query,
+            parent_context=parent_context,
+            thread_vals=thread_vals,
+            new_cursor=new_cursor,
+        )

@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_screen_profile_manager,screen.profile.manager,model_screen_profile,group_screening_manager,1,1,1,1
+access_screen_profile_rule_manager,screen.profile.rule.manager,model_screen_profile_rule,group_screening_manager,1,1,1,1
+access_screen_result_manager,screen.result.manager,model_screen_result,group_screening_manager,1,1,1,1
+access_screen_result_item_manager,screen.result.item.manager,model_screen_result_item,group_screening_manager,1,1,1,1

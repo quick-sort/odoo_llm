@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Self-contained demo target records (res.partner placeholders for the
+         originating biotech companies). -->
+    <record id="demo_partner_biotech_a" model="res.partner">
+        <field name="name">Hangzhou ImmunoBio (Demo)</field>
+        <field name="is_company" eval="True" />
+        <field name="comment">Demo biotech for LLM Screening. Originating company for an early-stage immunology bispecific antibody.</field>
+    </record>
+
+    <record id="demo_partner_biotech_b" model="res.partner">
+        <field name="name">Shanghai SmallMol Tx (Demo)</field>
+        <field name="is_company" eval="True" />
+        <field name="comment">Demo biotech for LLM Screening. Pre-PCC small molecule platform.</field>
+    </record>
+
+    <record id="demo_partner_biotech_c" model="res.partner">
+        <field name="name">Suzhou RespiraBio (Demo)</field>
+        <field name="is_company" eval="True" />
+        <field name="comment">Demo biotech for LLM Screening. Mid-stage respiratory antibody.</field>
+    </record>
+
+    <!-- ============================================================
+         Demo result #1 - Early-stage profile, all pass.
+         ============================================================ -->
+    <record id="screen_result_demo_early_pass" model="screen.result">
+        <field name="res_model">res.partner</field>
+        <field name="res_id" ref="demo_partner_biotech_a" />
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="state">done</field>
+        <field name="summary">Strong fit on every dimension: immunology IO BsAb, close-to-IND with full preclinical package, Chinese biotech with a clinically validated platform asset, Global + China rights on offer. Recommend advancing to scientific deep-dive.</field>
+        <field name="material"><![CDATA[Asset overview (Hangzhou ImmunoBio):
+- Program: HIB-201, a CD3xCLDN18.2 bispecific antibody for gastric cancer (immuno-oncology).
+- Modality: IgG-like bispecific antibody. Molecule sequence finalized, expressible at 2.1 g/L, no developability flags.
+- Stage: Close to IND. GLP tox study scheduled Q3; IND filing targeted within 6 months.
+- Preclinical data: Mouse efficacy in MC38-hCLDN18.2 tumor model (TGI 78%); cyno PK with t1/2 ~9 days; cyno repeat-dose tox NOAEL established.
+- Platform: Internal CD3-engaging bispecific platform; previously generated HIB-101 (anti-CD20xCD3) which is currently in Phase 1 in China (clinically validated).
+- Company: Chinese biotech, Hangzhou-based, Series B.
+- Deal: Global rights + China rights (clinical & commercial) on offer.]]></field>
+    </record>
+
+    <function model="screen.result" name="set_item_outcomes">
+        <value eval="ref('screen_result_demo_early_pass')" />
+        <value eval="[
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_ta'),
+                'status': 'pass',
+                'reasoning': 'Primary TA is gastric cancer (immuno-oncology), squarely within immunology focus.',
+                'evidence': 'CD3xCLDN18.2 bispecific antibody for gastric cancer (immuno-oncology).',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_modality'),
+                'status': 'pass',
+                'reasoning': 'IgG-like bispecific antibody - antibody/biologic modality.',
+                'evidence': 'Modality: IgG-like bispecific antibody.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_stage'),
+                'status': 'pass',
+                'reasoning': 'Close to IND with GLP tox scheduled and a 6-month IND target; complete preclinical data package.',
+                'evidence': 'Close to IND. GLP tox study scheduled Q3; IND filing targeted within 6 months.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_data_invivo'),
+                'status': 'pass',
+                'reasoning': 'Both required preclinical data points present: mouse efficacy (TGI 78%) and cyno (monkey) PK with t1/2 reported.',
+                'evidence': 'Mouse efficacy in MC38-hCLDN18.2 (TGI 78%); cyno PK with t1/2 ~9 days.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_data_multispecific'),
+                'status': 'pass',
+                'reasoning': 'Bispecific asset and molecule is ready: sequence finalized, expressible, no developability flags.',
+                'evidence': 'Molecule sequence finalized, expressible at 2.1 g/L, no developability flags.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_territory'),
+                'status': 'pass',
+                'reasoning': 'Both Global and China rights (clinical and commercial) are on offer.',
+                'evidence': 'Deal: Global rights + China rights (clinical and commercial) on offer.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_company'),
+                'status': 'pass',
+                'reasoning': 'Chinese biotech with a platform that has produced HIB-101, currently in Phase 1 (clinically validated).',
+                'evidence': 'Chinese biotech, Hangzhou-based ... HIB-101 ... currently in Phase 1 in China (clinically validated).',
+            },
+        ]" />
+    </function>
+
+    <!-- ============================================================
+         Demo result #2 - Early-stage profile, hard fail on modality
+         and stage; mixed status to exercise the overall_status logic.
+         ============================================================ -->
+    <record id="screen_result_demo_early_fail" model="screen.result">
+        <field name="res_model">res.partner</field>
+        <field name="res_id" ref="demo_partner_biotech_b" />
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="state">done</field>
+        <field name="summary">Pass overall blocked by two required failures: small molecule modality without IND-stage differentiation, and pre-PCC stage without a clinically validated platform asset. Recommend decline at this time; revisit if a candidate reaches IND with strong differentiation.</field>
+        <field name="material"><![CDATA[Asset overview (Shanghai SmallMol Tx):
+- Program: SMT-014, oral small-molecule TYK2 allosteric inhibitor for psoriasis.
+- Modality: Small molecule; lead series identified, hit-to-lead complete, lead optimization ongoing.
+- Stage: Pre-PCC; current lead has acceptable potency (IC50 ~12 nM) but selectivity vs JAK1/2/3 still being optimized.
+- Preclinical data: Mouse IMQ-induced psoriasis model shows dose-dependent reduction in PASI; PK in rodents established; monkey PK not yet generated.
+- Platform: Allosteric kinase inhibitor platform; no clinically validated asset to date; earliest program at pre-PCC stage.
+- Company: Chinese biotech, Shanghai-based, Series A.
+- Deal: Global + China rights available.]]></field>
+    </record>
+
+    <function model="screen.result" name="set_item_outcomes">
+        <value eval="ref('screen_result_demo_early_fail')" />
+        <value eval="[
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_ta'),
+                'status': 'pass',
+                'reasoning': 'Psoriasis is an immunology indication.',
+                'evidence': 'TYK2 allosteric inhibitor for psoriasis.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_modality'),
+                'status': 'fail',
+                'reasoning': 'Small molecule modality. Exception requires IND-stage + strong differentiation; this asset is pre-PCC and selectivity differentiation is still being optimized.',
+                'evidence': 'Modality: Small molecule ... Stage: Pre-PCC ... selectivity vs JAK1/2/3 still being optimized.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_stage'),
+                'status': 'fail',
+                'reasoning': 'Pre-PCC, and the platform has no clinically validated asset (earliest program is also pre-PCC), so the pre-PCC exception does not apply.',
+                'evidence': 'Pre-PCC ... no clinically validated asset to date; earliest program at pre-PCC stage.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_data_invivo'),
+                'status': 'fail',
+                'reasoning': 'Mouse efficacy present but monkey PK explicitly absent; required dataset incomplete.',
+                'evidence': 'Mouse IMQ-induced psoriasis model shows dose-dependent reduction in PASI ... monkey PK not yet generated.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_data_multispecific'),
+                'status': 'not_applicable',
+                'reasoning': 'Asset is a small molecule, not a BsAb or TriAb; rule does not apply.',
+                'evidence': 'Modality: Small molecule.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_territory'),
+                'status': 'pass',
+                'reasoning': 'Both Global and China rights are available.',
+                'evidence': 'Deal: Global + China rights available.',
+            },
+            {
+                'rule_id': ref('screen_profile_early_stage_rule_company'),
+                'status': 'fail',
+                'reasoning': 'Chinese biotech but operating as a platform company; platform has no clinically validated or PCC-advanced asset.',
+                'evidence': 'Allosteric kinase inhibitor platform; no clinically validated asset to date; earliest program at pre-PCC stage.',
+            },
+        ]" />
+    </function>
+
+    <!-- ============================================================
+         Demo result #3 - Mid-to-late stage profile, needs_info on
+         PoC/dose-response.
+         ============================================================ -->
+    <record id="screen_result_demo_mid_needs_info" model="screen.result">
+        <field name="res_model">res.partner</field>
+        <field name="res_id" ref="demo_partner_biotech_c" />
+        <field name="profile_id" ref="screen_profile_mid_late_stage" />
+        <field name="state">done</field>
+        <field name="summary">Asset clears all hard gates (TA, modality, stage, China rights) but Phase 2 readout disclosed only top-line efficacy without a dose-response plot; flagging needs_info on PoC/dose-response. Recommend requesting per-dose efficacy and PK/PD data before team review.</field>
+        <field name="material"><![CDATA[Asset overview (Suzhou RespiraBio):
+- Program: SRB-220, anti-TSLP monoclonal antibody for severe asthma.
+- Modality: Humanized IgG4 monoclonal antibody.
+- Stage: Phase 2b ongoing in China (n=240, three dose arms 50/150/300 mg q4w); Phase 2a primary endpoint (annualized asthma exacerbation rate at week 24) met with p<0.01 vs placebo.
+- Clinical data disclosed: Top-line Phase 2a readout shared (overall reduction in AAER, safety summary). Per-dose efficacy breakdown and PK/PD modelling not in current deck.
+- Deal: Greater China rights mandatory; partial Global rights (ex-US/EU) negotiable. US/EU rights retained by company.
+- Company: Chinese biotech, Suzhou-based, Series C.]]></field>
+    </record>
+
+    <function model="screen.result" name="set_item_outcomes">
+        <value eval="ref('screen_result_demo_mid_needs_info')" />
+        <value eval="[
+            {
+                'rule_id': ref('screen_profile_mid_late_stage_rule_rights'),
+                'status': 'pass',
+                'reasoning': 'Greater China rights are mandatory in the deal (hard gate satisfied); partial Global rights (ex-US/EU) are also on the table, matching the updated preferred structure.',
+                'evidence': 'Greater China rights mandatory; partial Global rights (ex-US/EU) negotiable.',
+            },
+            {
+                'rule_id': ref('screen_profile_mid_late_stage_rule_ta'),
+                'status': 'pass',
+                'reasoning': 'Severe asthma falls under respiratory, an adjacent allowed field.',
+                'evidence': 'anti-TSLP monoclonal antibody for severe asthma.',
+            },
+            {
+                'rule_id': ref('screen_profile_mid_late_stage_rule_modality'),
+                'status': 'pass',
+                'reasoning': 'Humanized IgG4 monoclonal antibody; neither gene therapy nor probiotic.',
+                'evidence': 'Humanized IgG4 monoclonal antibody.',
+            },
+            {
+                'rule_id': ref('screen_profile_mid_late_stage_rule_stage'),
+                'status': 'pass',
+                'reasoning': 'Phase 2b ongoing with Phase 2a primary endpoint met; well above the minimum bar of completed Global Phase 1.',
+                'evidence': 'Phase 2b ongoing in China ... Phase 2a primary endpoint ... met with p&lt;0.01 vs placebo.',
+            },
+            {
+                'rule_id': ref('screen_profile_mid_late_stage_rule_poc'),
+                'status': 'needs_info',
+                'reasoning': 'Top-line PoC is supported by the Phase 2a readout, but per-dose efficacy and PK/PD modelling are not disclosed, so dose-response cannot be evaluated.',
+                'evidence': 'Top-line Phase 2a readout shared ... Per-dose efficacy breakdown and PK/PD modelling not in current deck.',
+            },
+        ]" />
+    </function>
+</odoo>

@@ -1,7 +1,6 @@
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
 
 from ..fields import PgVector
 
@@ -11,6 +10,7 @@ _logger = logging.getLogger(__name__)
 class LLMKnowledgeChunkEmbedding(models.Model):
     _name = "llm.knowledge.chunk.embedding"
     _description = "Vector Embedding for Knowledge Chunks"
+    _rec_name = "chunk_id"  # Use chunk name as display name
 
     chunk_id = fields.Many2one(
         "llm.knowledge.chunk",
@@ -47,38 +47,20 @@ class LLMKnowledgeChunkEmbedding(models.Model):
         index=True,
     )
 
-    display_name = fields.Char(
-        compute="_compute_display_name", string="Display Name"
+    _unique_chunk_embedding_model = models.Constraint(
+        "UNIQUE(chunk_id, embedding_model_id)",
+        "A chunk can only have one embedding per embedding model",
     )
+
+    display_name = fields.Char(compute="_compute_display_name")
 
     @api.depends("chunk_id.name", "embedding_model_id.name")
     def _compute_display_name(self):
-        """Compute display name for better readability"""
         for record in self:
-            chunk_name = record.chunk_id.name if record.chunk_id else "Chunk"
-            model_name = (
-                record.embedding_model_id.name if record.embedding_model_id else "Model"
+            record.display_name = (
+                f"{record.chunk_id.name or 'Chunk'} "
+                f"[{record.embedding_model_id.name or 'Model'}]"
             )
-            record.display_name = f"{chunk_name} [{model_name}]"
-
-    @api.constrains("chunk_id", "embedding_model_id")
-    def _check_unique_chunk_embedding_model(self):
-        """Ensure a chunk can only have one embedding per embedding model"""
-        for record in self:
-            if record.chunk_id and record.embedding_model_id:
-                # Check for duplicate embeddings
-                duplicates = self.search(
-                    [
-                        ("chunk_id", "=", record.chunk_id.id),
-                        ("embedding_model_id", "=", record.embedding_model_id.id),
-                        ("id", "!=", record.id),
-                    ],
-                    limit=1,
-                )
-                if duplicates:
-                    raise ValidationError(
-                        "A chunk can only have one embedding per embedding model"
-                    )
 
     @api.model_create_multi
     def create(self, vals_list):

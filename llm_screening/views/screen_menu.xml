@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <menuitem id="menu_screening_root"
+                  name="Screening"
+                  sequence="50"
+                  groups="group_screening_manager"/>
+
+        <menuitem id="menu_screening_profile"
+                  name="Profiles"
+                  parent="menu_screening_root"
+                  action="action_screen_profile"
+                  sequence="10"/>
+
+        <menuitem id="menu_screening_result"
+                  name="Results"
+                  parent="menu_screening_root"
+                  action="action_screen_result"
+                  sequence="20"/>
+    </data>
+</odoo>

@@ -66,13 +66,16 @@
             <search>
                 <field name="name" />
                 <field name="service" />
-                
                 <filter
           string="Archived"
           name="inactive"
           domain="[('active', '=', False)]"
         />
-                <filter string="Service" name="group_by_service" context="{'group_by': 'service'}"/>
+                <filter
+          string="Service"
+          name="group_by_service"
+          context="{'group_by': 'service'}"
+        />
             </search>
         </field>
     </record>

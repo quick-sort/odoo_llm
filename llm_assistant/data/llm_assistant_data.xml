@@ -44,6 +44,7 @@
             ref('llm_tool.llm_tool_odoo_record_creator'),
             ref('llm_tool.llm_tool_odoo_record_updater'),
             ref('llm_tool.llm_tool_odoo_record_unlinker'),
+            ref('llm_assistant.llm_tool_invoke_assistant'),
         ])]" />
     </record>
 </odoo>

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Demo profile: HBM early-stage (preclinical / Phase 1) screening
+         criteria, updated approach (post-5/14 discussion). -->
+    <record id="screen_profile_early_stage" model="screen.profile">
+        <field name="name">Early Stage (Preclinical / Phase 1) - HBM Updated Criteria</field>
+        <field name="active" eval="True" />
+        <field name="description"><![CDATA[Applies to early-stage in-licensing opportunities — assets at preclinical or Phase 1 stage, sourced primarily from Chinese biotech. Use this profile when the material describes a single drug-candidate opportunity, includes information about therapeutic area, modality, development stage, preclinical/clinical data, deal territory and originating company. Do NOT use this profile for late-stage assets (Phase 2/3, approved), for non-drug opportunities (devices, diagnostics, services), or when the material is a company-level overview without a specific candidate.
+
+Criteria reflect Harbour BioMed's updated screening approach agreed on 5/14: immunology focus, antibody/biologics-first modality, close-to-IND with a complete data package, Global + China rights, and a Chinese-biotech / platform-company origin with at least one clinically validated or PCC-advanced asset.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_ta" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">10</field>
+        <field name="name">TA Focus: Immunology</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The asset's primary therapeutic area is immunology (including immuno-oncology). Non-aligned therapeutic areas are a direct pass — fail this rule if the asset's primary TA is not immunology / immuno-oncology.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_modality" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">20</field>
+        <field name="name">Modality: Antibody / Biologics</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The modality is an antibody or biologic. Small molecules are accepted only if they are at IND stage AND show strong differentiation (case-by-case). RNA / siRNA and other modalities outside antibody / biologics are a fail unless they meet the IND-stage + strong-differentiation exception.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_stage" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">30</field>
+        <field name="name">Stage: Close-to-IND with Complete Data Package</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The asset is close to IND with a complete data package. Pre-PCC assets are acceptable ONLY if the originating platform has produced at least one clinically validated asset. Earlier / pre-PCC assets from platforms without a clinically validated asset fail this rule.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_data_invivo" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">40</field>
+        <field name="name">Required Data: Mouse Efficacy + Monkey PK</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[Scientific data package must include, at minimum, mouse efficacy data AND monkey PK data. If either is missing or not disclosed in the material, mark needs_info; if explicitly absent, fail.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_data_multispecific" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">50</field>
+        <field name="name">Molecule Readiness for BsAb / TriAb</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[If the asset is a bispecific antibody (BsAb) or trispecific antibody (TriAb), the molecule itself must be ready (sequence finalized, expressible, developability assessed). Not applicable if the asset is a conventional monoclonal antibody or non-multispecific biologic.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_territory" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">60</field>
+        <field name="name">Territory: Global + China Rights</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The deal must convey Global rights AND China rights, covering both clinical development and commercialization. Deals limited to ex-China or ex-Global rights fail this rule.]]></field>
+    </record>
+
+    <record id="screen_profile_early_stage_rule_company" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_early_stage" />
+        <field name="sequence">70</field>
+        <field name="name">Company Type: Chinese Biotech (Platforms with Validated Asset)</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The originating company is a Chinese biotech (primary target). Platform companies are acceptable only if they can demonstrate at least one clinically validated asset OR a PCC-advanced asset. Non-Chinese non-platform companies, or platform companies without a validated / PCC-advanced asset, fail this rule.]]></field>
+    </record>
+
+    <!-- Demo profile: HBM mid-to-late-stage (Phase 2 / Phase 3) screening
+         criteria, updated approach (post-5/14 discussion). -->
+    <record id="screen_profile_mid_late_stage" model="screen.profile">
+        <field name="name">Mid-to-Late Stage (Phase 2 / Phase 3) - HBM Updated Criteria</field>
+        <field name="active" eval="True" />
+        <field name="description"><![CDATA[Applies to mid-to-late-stage in-licensing opportunities — assets at Phase 2 or Phase 3, with human efficacy / safety data already in hand. Use this profile when the material describes a clinical-stage drug candidate (Phase 2a or later) and includes information about therapeutic area, modality, development stage / readouts, and deal territory. Do NOT use this profile for preclinical or Phase 1 assets (use the Early-Stage profile instead), for non-drug opportunities, or when the material is a company-level overview without a specific candidate.
+
+Criteria reflect Harbour BioMed's updated screening approach agreed on 5/14: Greater China rights are mandatory and partial Global rights are now additionally sought; immunology + adjacent TAs (GI, Respiratory, Dermatology, systemic inflammatory); modality-agnostic except gene therapy and probiotics; minimum Global Ph1 finished, with emphasis on human PoC and clear dose-response.]]></field>
+    </record>
+
+    <record id="screen_profile_mid_late_stage_rule_rights" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_mid_late_stage" />
+        <field name="sequence">10</field>
+        <field name="name">Rights: Greater China (Mandatory) + Partial Global</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The deal MUST convey Greater China rights (clinical & commercial) — this is a hard requirement. The updated approach additionally seeks partial Global rights: a deal with Greater China only is acceptable but a deal that also includes partial Global rights is preferred. Fail this rule if Greater China rights are missing or restricted; flag needs_info if rights scope is not disclosed.]]></field>
+    </record>
+
+    <record id="screen_profile_mid_late_stage_rule_ta" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_mid_late_stage" />
+        <field name="sequence">20</field>
+        <field name="name">TA Focus: Immunology + Adjacent Fields</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The asset's primary therapeutic area is immunology OR one of the adjacent fields: gastroenterology (GI), respiratory, dermatology, or systemic inflammatory disease. Assets outside this set fail this rule.]]></field>
+    </record>
+
+    <record id="screen_profile_mid_late_stage_rule_modality" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_mid_late_stage" />
+        <field name="sequence">30</field>
+        <field name="name">Modality: Agnostic (Exclude Gene Therapy / Probiotics)</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[Modality is agnostic — antibody, small molecule, peptide, RNA, cell therapy, etc. are all acceptable. EXCLUDE gene therapy and probiotics: assets in these two modality classes fail this rule.]]></field>
+    </record>
+
+    <record id="screen_profile_mid_late_stage_rule_stage" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_mid_late_stage" />
+        <field name="sequence">40</field>
+        <field name="name">Stage: Phase 2a+ with Human Efficacy / Safety Data</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The asset is at Phase 2a or later AND has human efficacy and safety data. Minimum acceptable bar is a completed Global Phase 1; base case is Global Phase 2; best case is Global Phase 3. Assets earlier than completed Global Ph1, or lacking human efficacy/safety readouts, fail this rule.]]></field>
+    </record>
+
+    <record id="screen_profile_mid_late_stage_rule_poc" model="screen.profile.rule">
+        <field name="profile_id" ref="screen_profile_mid_late_stage" />
+        <field name="sequence">50</field>
+        <field name="name">Human PoC + Clear Dose-Response</field>
+        <field name="is_required" eval="True" />
+        <field name="requirement"><![CDATA[The material must demonstrate human proof-of-concept AND a clear dose-response relationship. This is an explicit emphasis under the updated approach. If PoC is present but dose-response is unclear, mark needs_info. If neither is supported by the data, fail.]]></field>
+    </record>
+</odoo>

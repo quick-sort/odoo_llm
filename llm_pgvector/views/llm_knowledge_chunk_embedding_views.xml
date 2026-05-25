@@ -52,8 +52,18 @@
                 <field name="embedding_model_id" />
                 <field name="resource_id" />
                 <field name="collection_ids" />
-                <filter string="Embedding Model" name="group_by_model" domain="[]" context="{'group_by':'embedding_model_id'}"/>
-                <filter string="Resource" name="group_by_resource" domain="[]" context="{'group_by':'resource_id'}"/>
+                <filter
+          string="Embedding Model"
+          name="group_by_model"
+          domain="[]"
+          context="{'group_by':'embedding_model_id'}"
+        />
+                <filter
+          string="Resource"
+          name="group_by_resource"
+          domain="[]"
+          context="{'group_by':'resource_id'}"
+        />
             </search>
         </field>
     </record>

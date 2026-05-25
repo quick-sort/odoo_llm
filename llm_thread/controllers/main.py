@@ -38,9 +38,28 @@ class LLMThreadController(http.Controller):
         except Exception:
             return False
 
+    # Event types that represent a meaningful, low-frequency state change worth
+    # committing for. Committing fires bus notifications so other tabs / thread
+    # followers see progress in real time. message_chunk is excluded because it
+    # is emitted many times per second during streaming.
+    _COMMIT_ON_EVENT_TYPES = frozenset({
+        "message_create",
+        "message_update",
+        "tool_called",
+        "tool_succeeded",
+        "tool_failed",
+        "error",
+    })
+
     @classmethod
     def _llm_thread_generate(cls, dbname, env, thread_id, user_message_body, **kwargs):
-        """Generate LLM responses with streaming and safe yielding."""
+        """Generate LLM responses with streaming and safe yielding.
+
+        The transaction boundary for the whole LLM turn lives here. `llm.thread`
+        and `llm.assistant` deliberately never commit inside `generate_messages`
+        — they only flush — so this controller is the single point that decides
+        commit cadence for the HTTP/SSE path.
+        """
         with Registry(dbname).cursor() as cr:
             env = api.Environment(cr, env.uid, env.context)
             llm_thread = env["llm.thread"].browse(int(thread_id))
@@ -60,6 +79,9 @@ class LLMThreadController(http.Controller):
                     if not success:
                         client_connected = False
                         break
+
+                    if response.get("type") in cls._COMMIT_ON_EVENT_TYPES:
+                        cr.commit()
 
             except GeneratorExit:
                 client_connected = False
