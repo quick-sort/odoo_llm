@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- List View -->
+    <record id="view_llm_mcp_client_list" model="ir.ui.view">
+        <field name="name">llm.mcp.client.list</field>
+        <field name="model">llm.mcp.client</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="url" />
+                <field name="status" decoration-success="status == 'connected'" decoration-danger="status == 'error'" decoration-muted="status == 'not_tested'" widget="badge" />
+                <field name="tool_count" string="Tools" />
+                <field name="last_sync" />
+                <field name="active" column_invisible="True" />
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_llm_mcp_client_form" model="ir.ui.view">
+        <field name="name">llm.mcp.client.form</field>
+        <field name="model">llm.mcp.client</field>
+        <field name="arch" type="xml">
+            <form string="MCP Service">
+                <header>
+                    <button
+                        name="action_sync_tools"
+                        string="Sync Tools"
+                        type="object"
+                        class="oe_highlight"
+                    />
+                    <field
+                        name="status"
+                        widget="statusbar"
+                        statusbar_visible="not_tested,connected,error"
+                    />
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+                            name="action_view_tools"
+                            type="object"
+                            class="oe_stat_button"
+                            icon="fa-wrench"
+                        >
+                            <field name="tool_count" widget="statinfo" string="Tools" />
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name" />
+                        <h1>
+                            <field name="name" placeholder="e.g. My MCP Server" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Connection">
+                            <field name="url" placeholder="http://localhost:3000/mcp" />
+                            <field name="api_key" password="True" placeholder="Leave empty if not required" />
+                            <field name="active" />
+                        </group>
+                        <group string="Sync Info">
+                            <field name="last_sync" />
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Tools" name="tools">
+                            <field
+                                name="tool_ids"
+                                nolabel="1"
+                                context="{'default_mcp_client_id': id, 'default_implementation': 'mcp_tool'}"
+                            >
+                                <list>
+                                    <field name="name" />
+                                    <field name="description" />
+                                    <field name="active" />
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_llm_mcp_client" model="ir.actions.act_window">
+        <field name="name">MCP Services</field>
+        <field name="res_model">llm.mcp.client</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first external MCP service
+            </p>
+            <p>
+                Connect to any MCP-compatible server (streamable-http transport)
+                and import its tools for use with LLM assistants.
+            </p>
+        </field>
+    </record>
+</odoo>

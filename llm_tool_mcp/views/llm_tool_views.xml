@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Extend llm.tool form: show MCP fields when implementation == mcp_tool -->
+    <record id="view_llm_tool_form_mcp" model="ir.ui.view">
+        <field name="name">llm.tool.form.mcp</field>
+        <field name="model">llm.tool</field>
+        <field name="inherit_id" ref="llm_tool.view_llm_tool_form" />
+        <field name="arch" type="xml">
+            <field name="server_action_id" position="after">
+                <field
+                    name="mcp_client_id"
+                    invisible="implementation != 'mcp_tool'"
+                    required="implementation == 'mcp_tool'"
+                    options="{'no_create': True}"
+                />
+                <field
+                    name="mcp_tool_name"
+                    invisible="implementation != 'mcp_tool'"
+                    placeholder="Defaults to tool name if empty"
+                />
+            </field>
+        </field>
+    </record>
+
+    <!-- Extend llm.tool list: show mcp_client_id column -->
+    <record id="view_llm_tool_list_mcp" model="ir.ui.view">
+        <field name="name">llm.tool.list.mcp</field>
+        <field name="model">llm.tool</field>
+        <field name="inherit_id" ref="llm_tool.view_llm_tool_tree" />
+        <field name="arch" type="xml">
+            <field name="implementation" position="after">
+                <field name="mcp_client_id" optional="show" />
+            </field>
+        </field>
+    </record>
+</odoo>
