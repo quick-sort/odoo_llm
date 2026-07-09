@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="view_llm_assistant_form_inherit_discuss" model="ir.ui.view">
+        <field name="name">llm.assistant.form.inherit.discuss</field>
+        <field name="model">llm.assistant</field>
+        <field name="inherit_id" ref="llm_assistant.view_llm_assistant_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Discuss / Live Chat" name="discuss">
+                    <group>
+                        <group name="discuss_config" string="Bot Configuration">
+                            <field name="discuss_enabled" />
+                            <field
+                name="discuss_trigger_mode"
+                invisible="not discuss_enabled"
+              />
+                            <field name="discuss_user_id" readonly="1" />
+                        </group>
+                    </group>
+                    <button
+            name="action_create_discuss_user"
+            type="object"
+            string="Create Bot User"
+            class="btn-secondary"
+            invisible="discuss_user_id"
+          />
+                    <div class="alert alert-info mt-2" role="alert">
+                        <p class="mb-0">
+                            Creates an internal technical user representing this assistant.
+                            Add that user to a Discuss chat or channel (as you would any
+                            employee) to let it answer automatically. Install
+                            <code>llm_discuss_livechat</code> to also assign it as a Live
+                            Chat operator.
+                        </p>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

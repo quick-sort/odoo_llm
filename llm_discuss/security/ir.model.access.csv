@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_discuss_reply_queue_manager,llm.discuss.reply.queue.manager,model_llm_discuss_reply_queue,llm.group_llm_manager,1,1,1,1

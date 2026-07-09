@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="view_llm_assistant_form_inherit_discuss_livechat" model="ir.ui.view">
+        <field name="name">llm.assistant.form.inherit.discuss.livechat</field>
+        <field name="model">llm.assistant</field>
+        <field name="inherit_id" ref="llm_discuss.view_llm_assistant_form_inherit_discuss" />
+        <field name="arch" type="xml">
+            <group name="discuss_config" position="inside">
+                <field
+          name="livechat_channel_ids"
+          widget="many2many_tags"
+          options="{'no_create': True}"
+        />
+            </group>
+        </field>
+    </record>
+</odoo>

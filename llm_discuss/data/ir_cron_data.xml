@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="ir_cron_process_reply_queue" model="ir.cron">
+        <field name="name">LLM Discuss: process pending assistant replies</field>
+        <field name="model_id" ref="model_llm_discuss_reply_queue" />
+        <field name="state">code</field>
+        <field name="code">model._cron_process_pending()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="numbercall">-1</field>
+        <field name="active" eval="True" />
+        <!--
+            This cron is a safety net: the normal path is that
+            llm.assistant._llm_discuss_dispatch() calls _trigger() on this
+            record right after enqueuing a job, which wakes it up
+            immediately instead of waiting for this 1-minute interval.
+        -->
+    </record>
+</odoo>
