@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_llm_ragas_knowledge_graph_form" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.form</field>
+        <field name="model">llm.ragas.knowledge.graph</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button
+            name="action_build_graph"
+            string="Build Graph"
+            type="object"
+            class="btn-primary"
+            confirm="This calls the configured LLM/embedding models to extract summaries, entities and relationships for every targeted chunk. Continue?"
+          />
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+              name="%(action_llm_ragas_knowledge_graph_node)d"
+              type="action"
+              class="oe_stat_button"
+              icon="fa-circle-o"
+              context="{'search_default_graph_id': id}"
+            >
+                            <field name="node_count" widget="statinfo" string="Nodes" />
+                        </button>
+                        <button
+              name="%(action_llm_ragas_knowledge_graph_relationship)d"
+              type="action"
+              class="oe_stat_button"
+              icon="fa-share-alt"
+              context="{'search_default_graph_id': id}"
+            >
+                            <field
+                name="relationship_count"
+                widget="statinfo"
+                string="Relationships"
+              />
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Knowledge Graph Name" /></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="collection_id" options="{'no_create': True}" />
+                            <field
+                name="resource_ids"
+                widget="many2many_tags"
+                options="{'no_create': True}"
+              />
+                        </group>
+                        <group>
+                            <field name="llm_model_id" options="{'no_create': True}" />
+                            <field
+                name="embedding_model_id"
+                options="{'no_create': True}"
+              />
+                            <field name="state" widget="badge" />
+                        </group>
+                    </group>
+                    <group string="Error" invisible="not error_message">
+                        <field name="error_message" nolabel="1" readonly="1" />
+                    </group>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <record id="view_llm_ragas_knowledge_graph_list" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.list</field>
+        <field name="model">llm.ragas.knowledge.graph</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="collection_id" />
+                <field name="node_count" />
+                <field name="relationship_count" />
+                <field name="state" widget="badge" />
+            </list>
+        </field>
+    </record>
+
+    <record id="action_llm_ragas_knowledge_graph" model="ir.actions.act_window">
+        <field name="name">Ragas Knowledge Graphs</field>
+        <field name="res_model">llm.ragas.knowledge.graph</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p
+        class="o_view_nocontent_smiling_face"
+      >Build a ragas knowledge graph from a collection</p>
+            <p
+      >The graph is built once from the collection's chunks and can be reused to generate multiple test sets without recomputing entity/summary extraction.</p>
+        </field>
+    </record>
+
+    <record id="view_llm_ragas_knowledge_graph_node_search" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.node.search</field>
+        <field name="model">llm.ragas.knowledge.graph.node</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="graph_id" />
+                <field name="resource_id" />
+            </search>
+        </field>
+    </record>
+
+    <record id="view_llm_ragas_knowledge_graph_node_list" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.node.list</field>
+        <field name="model">llm.ragas.knowledge.graph.node</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="graph_id" />
+                <field name="node_type" />
+                <field name="resource_id" />
+                <field name="chunk_id" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_llm_ragas_knowledge_graph_node_form" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.node.form</field>
+        <field name="model">llm.ragas.knowledge.graph.node</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="graph_id" options="{'no_create': True}" />
+                        <field name="node_type" />
+                        <field name="chunk_id" options="{'no_create': True}" />
+                        <field name="resource_id" options="{'no_create': True}" />
+                        <field name="ragas_uuid" readonly="1" />
+                    </group>
+                    <group string="Properties">
+                        <field name="properties" nolabel="1" readonly="1" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_llm_ragas_knowledge_graph_node" model="ir.actions.act_window">
+        <field name="name">Knowledge Graph Nodes</field>
+        <field name="res_model">llm.ragas.knowledge.graph.node</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_llm_ragas_knowledge_graph_relationship_list" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.relationship.list</field>
+        <field name="model">llm.ragas.knowledge.graph.relationship</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="graph_id" />
+                <field name="relationship_type" />
+                <field name="source_node_id" />
+                <field name="target_node_id" />
+                <field name="bidirectional" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_llm_ragas_knowledge_graph_relationship_form" model="ir.ui.view">
+        <field name="name">llm.ragas.knowledge.graph.relationship.form</field>
+        <field name="model">llm.ragas.knowledge.graph.relationship</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="graph_id" options="{'no_create': True}" />
+                        <field name="relationship_type" />
+                        <field
+              name="source_node_id"
+              options="{'no_create': True}"
+            />
+                        <field
+              name="target_node_id"
+              options="{'no_create': True}"
+            />
+                        <field name="bidirectional" />
+                    </group>
+                    <group string="Properties">
+                        <field name="properties" nolabel="1" readonly="1" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record
+    id="action_llm_ragas_knowledge_graph_relationship"
+    model="ir.actions.act_window"
+  >
+        <field name="name">Knowledge Graph Relationships</field>
+        <field name="res_model">llm.ragas.knowledge.graph.relationship</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

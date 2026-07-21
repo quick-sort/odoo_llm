@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <menuitem
+    id="menu_llm_ragas_knowledge_graph"
+    name="Ragas Knowledge Graphs"
+    parent="llm_knowledge_eval.menu_llm_knowledge_eval_root"
+    action="action_llm_ragas_knowledge_graph"
+    sequence="5"
+  />
+</odoo>

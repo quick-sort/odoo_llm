@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_llm_knowledge_eval_run_form" model="ir.ui.view">
+        <field name="name">llm.knowledge.eval.run.form</field>
+        <field name="model">llm.knowledge.eval.run</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button
+              name="action_view_results"
+              type="object"
+              class="oe_stat_button"
+              icon="fa-bar-chart"
+            >
+                            <field name="result_count" widget="statinfo" string="Results" />
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1" /></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="testset_id" options="{'no_create': True}" />
+                            <field
+                name="target_collection_id"
+                options="{'no_create': True}"
+              />
+                            <field name="top_k" />
+                        </group>
+                        <group>
+                            <field
+                name="metric_ids"
+                widget="many2many_tags"
+                options="{'no_create': True}"
+              />
+                            <field name="state" widget="badge" />
+                            <field name="active" widget="boolean_toggle" />
+                        </group>
+                    </group>
+                    <group string="Error" invisible="not error_message">
+                        <field name="error_message" nolabel="1" readonly="1" />
+                    </group>
+                    <notebook>
+                        <page string="Aggregate Scores">
+                            <field name="aggregate_scores" readonly="1" />
+                        </page>
+                        <page string="Scores by Query Type">
+                            <field name="scores_by_query_type" readonly="1" />
+                        </page>
+                        <page string="Results">
+                            <field name="result_ids" nolabel="1" readonly="1">
+                                <list>
+                                    <field name="question" />
+                                    <field name="query_type" />
+                                    <field name="generated_answer" />
+                                    <field name="latency_ms" />
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <record id="view_llm_knowledge_eval_run_list" model="ir.ui.view">
+        <field name="name">llm.knowledge.eval.run.list</field>
+        <field name="model">llm.knowledge.eval.run</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name" />
+                <field name="testset_id" />
+                <field name="target_collection_id" />
+                <field name="result_count" />
+                <field name="state" widget="badge" />
+            </list>
+        </field>
+    </record>
+
+    <record id="action_llm_knowledge_eval_run" model="ir.actions.act_window">
+        <field name="name">Evaluation Runs</field>
+        <field name="res_model">llm.knowledge.eval.run</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_llm_knowledge_eval_result_list" model="ir.ui.view">
+        <field name="name">llm.knowledge.eval.result.list</field>
+        <field name="model">llm.knowledge.eval.result</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="eval_run_id" />
+                <field name="question" />
+                <field name="query_type" />
+                <field name="latency_ms" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_llm_knowledge_eval_result_form" model="ir.ui.view">
+        <field name="name">llm.knowledge.eval.result.form</field>
+        <field name="model">llm.knowledge.eval.result</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="eval_run_id" options="{'no_create': True}" />
+                        <field name="testset_item_id" options="{'no_create': True}" />
+                        <field name="latency_ms" />
+                    </group>
+                    <group string="Question">
+                        <field name="question" nolabel="1" readonly="1" />
+                    </group>
+                    <group string="Generated Answer">
+                        <field name="generated_answer" nolabel="1" />
+                    </group>
+                    <group string="Retrieved Chunks">
+                        <field name="retrieved_chunk_ids" nolabel="1">
+                            <list>
+                                <field name="name" />
+                                <field name="resource_id" />
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Scores">
+                        <field name="scores" nolabel="1" />
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

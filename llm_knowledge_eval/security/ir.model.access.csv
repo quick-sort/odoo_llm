@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_knowledge_testset_user,llm.knowledge.testset.user,model_llm_knowledge_testset,base.group_user,1,0,0,0
+access_llm_knowledge_testset_manager,llm.knowledge.testset.manager,model_llm_knowledge_testset,llm.group_llm_manager,1,1,1,1
+access_llm_knowledge_testset_item_user,llm.knowledge.testset.item.user,model_llm_knowledge_testset_item,base.group_user,1,0,0,0
+access_llm_knowledge_testset_item_manager,llm.knowledge.testset.item.manager,model_llm_knowledge_testset_item,llm.group_llm_manager,1,1,1,1
+access_llm_knowledge_eval_metric_user,llm.knowledge.eval.metric.user,model_llm_knowledge_eval_metric,base.group_user,1,0,0,0
+access_llm_knowledge_eval_metric_manager,llm.knowledge.eval.metric.manager,model_llm_knowledge_eval_metric,llm.group_llm_manager,1,1,1,1
+access_llm_knowledge_eval_run_user,llm.knowledge.eval.run.user,model_llm_knowledge_eval_run,base.group_user,1,0,0,0
+access_llm_knowledge_eval_run_manager,llm.knowledge.eval.run.manager,model_llm_knowledge_eval_run,llm.group_llm_manager,1,1,1,1
+access_llm_knowledge_eval_result_user,llm.knowledge.eval.result.user,model_llm_knowledge_eval_result,base.group_user,1,0,0,0
+access_llm_knowledge_eval_result_manager,llm.knowledge.eval.result.manager,model_llm_knowledge_eval_result,llm.group_llm_manager,1,1,1,1

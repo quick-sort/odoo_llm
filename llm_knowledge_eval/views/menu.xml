@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <menuitem
+    id="menu_llm_knowledge_eval_root"
+    name="Evaluation"
+    parent="llm_knowledge.menu_llm_knowledge_root"
+    sequence="40"
+  />
+    <menuitem
+    id="menu_llm_knowledge_testset"
+    name="Test Sets"
+    parent="menu_llm_knowledge_eval_root"
+    action="action_llm_knowledge_testset"
+    sequence="10"
+  />
+    <menuitem
+    id="menu_llm_knowledge_eval_run"
+    name="Evaluation Runs"
+    parent="menu_llm_knowledge_eval_root"
+    action="action_llm_knowledge_eval_run"
+    sequence="20"
+  />
+    <menuitem
+    id="menu_llm_knowledge_eval_metric"
+    name="Metrics"
+    parent="menu_llm_knowledge_eval_root"
+    action="action_llm_knowledge_eval_metric"
+    sequence="30"
+  />
+</odoo>

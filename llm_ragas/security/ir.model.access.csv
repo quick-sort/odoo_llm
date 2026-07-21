@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_ragas_knowledge_graph_user,llm.ragas.knowledge.graph.user,model_llm_ragas_knowledge_graph,base.group_user,1,0,0,0
+access_llm_ragas_knowledge_graph_manager,llm.ragas.knowledge.graph.manager,model_llm_ragas_knowledge_graph,llm.group_llm_manager,1,1,1,1
+access_llm_ragas_knowledge_graph_node_user,llm.ragas.knowledge.graph.node.user,model_llm_ragas_knowledge_graph_node,base.group_user,1,0,0,0
+access_llm_ragas_knowledge_graph_node_manager,llm.ragas.knowledge.graph.node.manager,model_llm_ragas_knowledge_graph_node,llm.group_llm_manager,1,1,1,1
+access_llm_ragas_knowledge_graph_relationship_user,llm.ragas.knowledge.graph.relationship.user,model_llm_ragas_knowledge_graph_relationship,base.group_user,1,0,0,0
+access_llm_ragas_knowledge_graph_relationship_manager,llm.ragas.knowledge.graph.relationship.manager,model_llm_ragas_knowledge_graph_relationship,llm.group_llm_manager,1,1,1,1

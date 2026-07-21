@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo noupdate="1">
+    <record id="metric_faithfulness" model="llm.knowledge.eval.metric">
+        <field name="name">Faithfulness</field>
+        <field name="code">faithfulness</field>
+        <field name="implementation">ragas</field>
+        <field name="sequence">10</field>
+        <field
+      name="description"
+    >How factually consistent the generated answer is with the retrieved context.</field>
+    </record>
+
+    <record id="metric_answer_relevancy" model="llm.knowledge.eval.metric">
+        <field name="name">Answer Relevancy</field>
+        <field name="code">answer_relevancy</field>
+        <field name="implementation">ragas</field>
+        <field name="sequence">20</field>
+        <field
+      name="description"
+    >How relevant the generated answer is to the question. Requires a judge embedding model.</field>
+    </record>
+
+    <record id="metric_context_precision" model="llm.knowledge.eval.metric">
+        <field name="name">Context Precision</field>
+        <field name="code">context_precision</field>
+        <field name="implementation">ragas</field>
+        <field name="sequence">30</field>
+        <field
+      name="description"
+    >How well relevant retrieved chunks are ranked higher than irrelevant ones.</field>
+    </record>
+
+    <record id="metric_context_recall" model="llm.knowledge.eval.metric">
+        <field name="name">Context Recall</field>
+        <field name="code">context_recall</field>
+        <field name="implementation">ragas</field>
+        <field name="sequence">40</field>
+        <field
+      name="description"
+    >How many claims from the reference answer are covered by the retrieved context.</field>
+    </record>
+
+    <record id="metric_context_entities_recall" model="llm.knowledge.eval.metric">
+        <field name="name">Context Entities Recall</field>
+        <field name="code">context_entities_recall</field>
+        <field name="implementation">ragas</field>
+        <field name="sequence">50</field>
+        <field
+      name="description"
+    >Entity overlap between the reference answer and the retrieved context.</field>
+    </record>
+
+    <record id="metric_noise_sensitivity" model="llm.knowledge.eval.metric">
+        <field name="name">Noise Sensitivity</field>
+        <field name="code">noise_sensitivity</field>
+        <field name="implementation">ragas</field>
+        <field name="sequence">60</field>
+        <field
+      name="description"
+    >How often the system makes errors caused by irrelevant retrieved context.</field>
+    </record>
+</odoo>

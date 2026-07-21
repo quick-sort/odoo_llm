@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_llm_knowledge_testset_form_ragas" model="ir.ui.view">
+        <field name="name">llm.knowledge.testset.form.ragas</field>
+        <field name="model">llm.knowledge.testset</field>
+        <field name="inherit_id" ref="llm_knowledge_eval.view_llm_knowledge_testset_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@class='oe_title']" position="before">
+                <header>
+                    <button
+            name="action_generate_with_ragas"
+            string="Generate with Ragas"
+            type="object"
+            class="btn-primary"
+            confirm="This will call the configured LLM to generate new test cases from the selected knowledge graph. Continue?"
+          />
+                </header>
+            </xpath>
+            <xpath expr="//page[@string='Description']" position="before">
+                <page string="Ragas Generation">
+                    <group>
+                        <field name="ragas_graph_id" options="{'no_create': True}" />
+                        <field
+              name="ragas_generation_llm_model_id"
+              options="{'no_create': True}"
+            />
+                        <field name="ragas_test_size" />
+                    </group>
+                    <group string="Query Type Distribution">
+                        <field name="ragas_distribution" nolabel="1" />
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_llm_knowledge_eval_run_form_ragas" model="ir.ui.view">
+        <field name="name">llm.knowledge.eval.run.form.ragas</field>
+        <field name="model">llm.knowledge.eval.run</field>
+        <field name="inherit_id" ref="llm_knowledge_eval.view_llm_knowledge_eval_run_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@class='oe_title']" position="before">
+                <header>
+                    <button
+            name="action_run_with_ragas"
+            string="Run with Ragas"
+            type="object"
+            class="btn-primary"
+            confirm="This will query the collection under test for every active test case, generate an answer, and score it with ragas. Continue?"
+          />
+                </header>
+            </xpath>
+            <xpath expr="//field[@name='top_k']" position="after">
+                <field name="ragas_judge_llm_model_id" options="{'no_create': True}" />
+                <field name="ragas_embedding_model_id" options="{'no_create': True}" />
+            </xpath>
+        </field>
+    </record>
+</odoo>
