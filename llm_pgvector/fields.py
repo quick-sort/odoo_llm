@@ -22,9 +22,10 @@ class PgVector(fields.Field):
     type = "pgvector"
     column_type = ("vector", "vector")
 
-    _slots = {
-        "dimension": None,  # Vector dimensions
-    }
+    dimension = None  # Vector dimensions; declared as a class attr so the
+    # ORM's field-setup recognizes 'dimension' as a legitimate parameter
+    # (see Field._setup_attrs / hasattr(self, key) check in odoo/fields.py)
+    # instead of raising the "unknown parameter" warning.
 
     def __init__(
         self, string: str | Sentinel = SENTINEL, dimension: int | None = None, **kwargs
@@ -38,8 +39,11 @@ class PgVector(fields.Field):
 
         # Ensure the value is properly formatted for pgvector
         try:
-            # Use Vector._to_db method from pgvector
-            return Vector._to_db(value, self.dimension)
+            # Use Vector._to_db method from pgvector. Note: pgvector-python
+            # dropped the 'dimension' argument from this classmethod (it no
+            # longer validates/truncates dimension in Python - that's left to
+            # the DB column/index type), so only the value is passed here.
+            return Vector._to_db(value)
         except (ValueError, TypeError) as e:
             _logger.warning(f"Error converting vector: {e}. Returning NULL.")
             return None

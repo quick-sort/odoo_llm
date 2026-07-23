@@ -316,51 +316,71 @@ class LLMStorePgVector(models.Model):
                 _logger.info(f"Index {index_name} already exists, skipping creation")
                 return True
 
-        # Determine the dimension specification
+        # pgvector can only build an ANN index (ivfflat or hnsw) on the plain
+        # 'vector' type up to 2000 dimensions (fixed Postgres 8KB page-size
+        # constraint on float4 storage). 'halfvec' raises that ceiling to
+        # 4000 dims (half-precision floats) at the cost of some precision.
+        # Above 4000 dims there is no indexable type in pgvector at all.
+        if dimensions and dimensions > 4000:
+            _logger.warning(
+                "Embedding model %s produces %s-dimensional vectors, which "
+                "exceeds pgvector's indexing limit (4000, via halfvec). "
+                "Skipping index creation for this model; similarity search "
+                "will fall back to a full scan.",
+                embedding_model_id,
+                dimensions,
+            )
+            return False
+
+        use_halfvec = bool(dimensions and dimensions > 2000)
+        vector_type = "halfvec" if use_halfvec else "vector"
+        ops_class = f"{vector_type}_cosine_ops"
         dim_spec = f"({dimensions})" if dimensions else ""
 
         # Determine index method
         index_method = self.pgvector_index_method or "ivfflat"
 
-        try:
-            # Create appropriate index for this embedding model
-            if index_method == "ivfflat":
-                # Create IVFFlat index
+        def _create_index_sql(method):
+            """Attempt one CREATE INDEX inside its own SAVEPOINT, so a
+            failure (e.g. unsupported method/dimension) can be rolled back
+            without aborting the whole surrounding transaction - otherwise
+            every subsequent query on this cursor (including any embeddings
+            just inserted before this call) would start failing with
+            'current transaction is aborted'.
+            """
+            savepoint = f"sp_{index_name}"
+            cr.execute(f"SAVEPOINT {savepoint}")
+            try:
                 cr.execute(
                     f"""
                     CREATE INDEX {index_name} ON {table_name}
-                    USING ivfflat((embedding::vector{dim_spec}) vector_cosine_ops)
+                    USING {method}((embedding::{vector_type}{dim_spec}) {ops_class})
                     WHERE embedding_model_id = %s AND embedding IS NOT NULL
                 """,
                     (embedding_model_id,),
                 )
-            elif index_method == "hnsw":
-                # Try HNSW index if available in pgvector version
+            except Exception:
+                cr.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
+                raise
+            finally:
+                cr.execute(f"RELEASE SAVEPOINT {savepoint}")
+
+        try:
+            if index_method == "hnsw":
                 try:
-                    cr.execute(
-                        f"""
-                        CREATE INDEX {index_name} ON {table_name}
-                        USING hnsw((embedding::vector{dim_spec}) vector_cosine_ops)
-                        WHERE embedding_model_id = %s AND embedding IS NOT NULL
-                    """,
-                        (embedding_model_id,),
-                    )
+                    _create_index_sql("hnsw")
                 except Exception as e:
-                    # Fallback to IVFFlat if HNSW is not available
+                    # Fallback to IVFFlat if HNSW is not available/supported
                     _logger.warning(
                         f"HNSW index not supported, falling back to IVFFlat: {str(e)}"
                     )
-                    cr.execute(
-                        f"""
-                        CREATE INDEX {index_name} ON {table_name}
-                        USING ivfflat((embedding::vector{dim_spec}) vector_cosine_ops)
-                        WHERE embedding_model_id = %s AND embedding IS NOT NULL
-                    """,
-                        (embedding_model_id,),
-                    )
+                    _create_index_sql("ivfflat")
+            else:
+                _create_index_sql("ivfflat")
 
             _logger.info(
-                f"Created vector index {index_name} for embedding model {embedding_model_id}"
+                f"Created {vector_type} vector index {index_name} for "
+                f"embedding model {embedding_model_id}"
             )
             return True
         except Exception as e:
