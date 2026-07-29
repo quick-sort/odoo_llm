@@ -16,7 +16,7 @@
           />
                 </header>
             </xpath>
-            <xpath expr="//page[@string='Description']" position="before">
+            <xpath expr="//page[@name='description']" position="before">
                 <page string="Ragas Generation">
                     <group>
                         <field name="ragas_graph_id" options="{'no_create': True}" />

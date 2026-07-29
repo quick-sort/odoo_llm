@@ -35,14 +35,14 @@
                         </group>
                     </group>
                     <notebook>
-                        <page string="Description">
+                        <page name="description" string="Description">
                             <field
                 name="description"
                 nolabel="1"
                 placeholder="Test set description..."
               />
                         </page>
-                        <page string="Test Cases">
+                        <page name="test_cases" string="Test Cases">
                             <field name="item_ids" nolabel="1">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle" />

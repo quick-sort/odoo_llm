@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
+    <record id="action_llm_ragas_knowledge_graph_node" model="ir.actions.act_window">
+        <field name="name">Knowledge Graph Nodes</field>
+        <field name="res_model">llm.ragas.knowledge.graph.node</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record
+    id="action_llm_ragas_knowledge_graph_relationship"
+    model="ir.actions.act_window"
+  >
+        <field name="name">Knowledge Graph Relationships</field>
+        <field name="res_model">llm.ragas.knowledge.graph.relationship</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <record id="view_llm_ragas_knowledge_graph_form" model="ir.ui.view">
         <field name="name">llm.ragas.knowledge.graph.form</field>
         <field name="model">llm.ragas.knowledge.graph</field>
@@ -141,12 +156,6 @@
         </field>
     </record>
 
-    <record id="action_llm_ragas_knowledge_graph_node" model="ir.actions.act_window">
-        <field name="name">Knowledge Graph Nodes</field>
-        <field name="res_model">llm.ragas.knowledge.graph.node</field>
-        <field name="view_mode">list,form</field>
-    </record>
-
     <record id="view_llm_ragas_knowledge_graph_relationship_list" model="ir.ui.view">
         <field name="name">llm.ragas.knowledge.graph.relationship.list</field>
         <field name="model">llm.ragas.knowledge.graph.relationship</field>
@@ -186,14 +195,5 @@
                 </sheet>
             </form>
         </field>
-    </record>
-
-    <record
-    id="action_llm_ragas_knowledge_graph_relationship"
-    model="ir.actions.act_window"
-  >
-        <field name="name">Knowledge Graph Relationships</field>
-        <field name="res_model">llm.ragas.knowledge.graph.relationship</field>
-        <field name="view_mode">list,form</field>
     </record>
 </odoo>
