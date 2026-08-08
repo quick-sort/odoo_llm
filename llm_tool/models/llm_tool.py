@@ -180,8 +180,12 @@ class LLMTool(models.Model):
         # Generate schema from method signature
         method_func = self._get_implementation_method()
 
-        # Use MCP SDK's func_metadata to generate proper schema
-        from mcp.server.fastmcp.utilities.func_metadata import func_metadata
+        # Use MCP SDK's func_metadata to generate proper schema.
+        # mcp 2.0 renamed the fastmcp subpackage to mcpserver; support both.
+        try:
+            from mcp.server.mcpserver.utilities.func_metadata import func_metadata
+        except ImportError:
+            from mcp.server.fastmcp.utilities.func_metadata import func_metadata
 
         func_meta = func_metadata(method_func)
 

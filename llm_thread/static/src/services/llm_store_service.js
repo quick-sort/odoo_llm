@@ -306,6 +306,11 @@ export const llmStoreService = {
 
       // Create new thread with default provider and model
       async createNewThread({ recordModel, recordId } = {}) {
+        // Refresh data (providers, models, assistants, etc.) so newly
+        // configured ones are available without requiring a page reload.
+        const loaders = this.getDataLoaders();
+        await Promise.all(loaders.map((loader) => loader.call(this)));
+
         // Get first available provider and model
         const firstProvider = this.getFirstAvailableProvider();
         const firstModel = this.getFirstAvailableModel();
