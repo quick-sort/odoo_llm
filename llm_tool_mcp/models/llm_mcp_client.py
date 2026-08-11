@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import requests
 
@@ -63,21 +64,78 @@ class LLMMcpClient(models.Model):
     # HTTP helpers
     # ------------------------------------------------------------------
 
-    def _parse_response_json(self, resp):
+    @staticmethod
+    def _decode_body(resp):
+        """Decode the response body as UTF-8 unless the server declares a charset.
+
+        ``text/event-stream`` responses carry no charset, and requests then falls
+        back to ISO-8859-1 for ``text/*``, which mangles non-ASCII payloads. JSON
+        and SSE both default to UTF-8, so decode explicitly.
+        """
+        if "charset=" in resp.headers.get("Content-Type", "").lower():
+            return resp.text
+        return resp.content.decode("utf-8", errors="replace")
+
+    @staticmethod
+    def _iter_sse_payloads(body):
+        """Yield the ``data`` payload of every event in an SSE body.
+
+        Split only on real SSE line terminators (CRLF / CR / LF). ``splitlines()``
+        must not be used: it also breaks on U+0085, U+000B, U+2028 and friends,
+        which occur legitimately inside JSON text and would truncate the payload.
+        Multiple ``data`` lines belonging to one event are joined with newlines,
+        per the SSE specification.
+        """
+        data_lines = []
+        for line in re.split(r"\r\n|\r|\n", body):
+            if not line:
+                if data_lines:
+                    yield "\n".join(data_lines)
+                    data_lines = []
+                continue
+            if line.startswith(":"):
+                continue  # comment / keep-alive
+            field, _sep, value = line.partition(":")
+            if field == "data":
+                data_lines.append(value[1:] if value.startswith(" ") else value)
+        if data_lines:
+            yield "\n".join(data_lines)
+
+    def _parse_response_json(self, resp, request_id=None):
         """Parse JSON from a response that may be plain JSON or SSE format.
 
         MCP servers using streamable-http may return responses as SSE events:
             event: message\\r\\ndata: {...}\\r\\n\\r\\n
         """
-        content_type = resp.headers.get("Content-Type", "")
-        if "text/event-stream" in content_type:
-            for line in resp.text.splitlines():
-                if line.startswith("data:"):
-                    payload = line[5:].strip()
-                    if payload:
-                        return json.loads(payload)
-            return {}
-        return resp.json()
+        body = self._decode_body(resp)
+        if "text/event-stream" not in resp.headers.get("Content-Type", ""):
+            return json.loads(body)
+
+        fallback = None
+        last_error = None
+        for payload in self._iter_sse_payloads(body):
+            if not payload.strip():
+                continue
+            try:
+                data = json.loads(payload)
+            except ValueError as e:
+                last_error = e
+                continue
+            if not isinstance(data, dict):
+                continue
+            # Skip server-initiated notifications / progress events and keep
+            # looking for the response matching our request.
+            if request_id is not None and data.get("id") not in (None, request_id):
+                continue
+            if "result" in data or "error" in data:
+                return data
+            if fallback is None:
+                fallback = data
+        if fallback is not None:
+            return fallback
+        if last_error is not None:
+            raise last_error
+        return {}
 
     def _get_headers(self, session_id=None):
         headers = {
@@ -116,13 +174,18 @@ class LLMMcpClient(models.Model):
         # Session ID comes from the response header; body may be plain JSON or SSE
         session_id = resp.headers.get("Mcp-Session-Id")
         try:
-            data = self._parse_response_json(resp)
+            data = self._parse_response_json(resp, request_id=1)
+        except ValueError as e:
+            _logger.warning(
+                "MCP initialize: unparseable response body (%s): %r",
+                e,
+                self._decode_body(resp)[:500],
+            )
+        else:
             if "error" in data:
                 raise UserError(
                     _("MCP initialize error: %(msg)s", msg=data["error"].get("message", str(data["error"])))
                 )
-        except ValueError:
-            _logger.warning("MCP initialize: unparseable response body: %r", resp.text[:500])
 
         # Send initialized notification (fire-and-forget, no response expected)
         try:
@@ -152,11 +215,12 @@ class LLMMcpClient(models.Model):
             raise UserError(_("MCP request failed (%(method)s): %(msg)s", method=method, msg=str(e)))
 
         try:
-            data = self._parse_response_json(resp)
-        except ValueError:
-            _logger.error("MCP %s: unparseable response: %r", method, resp.text[:500])
+            data = self._parse_response_json(resp, request_id=request_id)
+        except ValueError as e:
+            body = self._decode_body(resp)
+            _logger.error("MCP %s: unparseable response (%s): %r", method, e, body[:500])
             raise UserError(
-                _("MCP server returned unparseable response for %(method)s: %(body)s", method=method, body=resp.text[:200])
+                _("MCP server returned unparseable response for %(method)s: %(body)s", method=method, body=body[:200])
             )
         if "error" in data:
             raise UserError(
