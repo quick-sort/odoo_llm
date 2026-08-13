@@ -460,6 +460,7 @@ class LLMThread(models.Model):
         message = None
         accumulated_content = ""
         collected_tool_calls = []
+        collected_images = []
 
         for chunk in stream_response:
             # Initialize message on first content
@@ -483,6 +484,10 @@ class LLMThread(models.Model):
                 _logger.debug(
                     f"Collected {len(chunk['tool_calls'])} tool calls from chunk",
                 )
+
+            # Collect images from stream
+            if chunk.get("images"):
+                collected_images.extend(chunk["images"])
 
             # Handle errors
             if chunk.get("error"):
@@ -525,6 +530,11 @@ class LLMThread(models.Model):
             })
             yield {"type": "message_update", "message": message.to_store_format()}
 
+        # Save images as attachments on the message
+        if collected_images and message:
+            self._save_response_images(collected_images, message)
+            yield {"type": "message_update", "message": message.to_store_format()}
+
         return message
 
     def _handle_non_streaming_response(self, response):
@@ -532,8 +542,9 @@ class LLMThread(models.Model):
         # Extract content and tool calls from response
         content = response.get("content", "")
         tool_calls = response.get("tool_calls", [])
+        images = response.get("images", [])
 
-        if not content and not tool_calls:
+        if not content and not tool_calls and not images:
             content = "No response from model"
 
         # body_json carries raw markdown content (for programmatic callers)
@@ -552,11 +563,43 @@ class LLMThread(models.Model):
             author_id=False,
         )
 
+        if images:
+            self._save_response_images(images, assistant_message)
+
         yield {
             "type": "message_create",
             "message": assistant_message.to_store_format(),
         }
         return assistant_message
+
+    def _save_response_images(self, images, message):
+        """Save LLM-generated images as attachments on the given message.
+
+        Args:
+            images: List of dicts with keys 'mimetype', 'data' (base64), and
+                    optionally 'url' (external URL).
+            message: mail.message record to attach images to.
+        """
+        attachments = self.env["ir.attachment"]
+        for idx, img in enumerate(images):
+            mimetype = img.get("mimetype", "image/png")
+            ext = mimetype.split("/")[-1] if "/" in mimetype else "png"
+            vals = {
+                "name": f"generated_image_{idx}.{ext}",
+                "res_model": "mail.message",
+                "res_id": message.id,
+                "mimetype": mimetype,
+            }
+            if img.get("data"):
+                vals["datas"] = img["data"]
+            elif img.get("url"):
+                vals["url"] = img["url"]
+                vals["type"] = "url"
+            else:
+                continue
+            attachments |= self.env["ir.attachment"].create(vals)
+        if attachments:
+            message.write({"attachment_ids": [(4, a.id) for a in attachments]})
 
     def _execute_tool_call(self, tool_call, assistant_message):
         """Execute a single tool call and return the tool message.

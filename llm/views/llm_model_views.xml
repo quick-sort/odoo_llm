@@ -8,6 +8,14 @@
             <form>
                 <header>
                     <button
+            name="action_test_connectivity"
+            string="Test Connectivity"
+            type="object"
+            class="oe_highlight"
+            invisible="not id or not is_testable"
+            help="Send a minimal request to the provider to check that this model is reachable."
+          />
+                    <button
             name="action_open_fetch_this_model_wizard"
             string="Fetch This Model Update"
             type="object"
@@ -17,6 +25,7 @@
           />
                 </header>
                 <sheet>
+                    <field name="is_testable" invisible="1" />
                     <div class="oe_button_box" name="button_box">
                         <button
               name="toggle_active"
@@ -41,6 +50,10 @@
                             <field name="provider_id" />
                             <field name="publisher_id" />
                             <field name="model_use" />
+                            <field
+                name="supports_image_output"
+                invisible="model_use not in ('chat', 'multimodal')"
+              />
                             <field name="is_default" />
                         </group>
                         <group>
@@ -49,6 +62,22 @@
                             <field name="parameters" widget="text" />
                             <field name="template" widget="text" />
                         </group>
+                    </group>
+                    <group
+            name="connectivity_test"
+            string="Connectivity Test"
+            invisible="not is_testable"
+          >
+                        <field
+              name="test_state"
+              widget="badge"
+              decoration-success="test_state == 'success'"
+              decoration-warning="test_state == 'warning'"
+              decoration-danger="test_state == 'failed'"
+            />
+                        <field name="test_date" invisible="not test_date" />
+                        <field name="test_message" invisible="not test_message" />
+                        <field name="test_detail" invisible="not test_detail" />
                     </group>
                 </sheet>
                 <chatter />
@@ -62,10 +91,30 @@
         <field name="model">llm.model</field>
         <field name="arch" type="xml">
             <list>
+                <header>
+                    <button
+            name="action_test_connectivity"
+            string="Test Connectivity"
+            type="object"
+            class="btn-secondary"
+            help="Test API connectivity for the selected models."
+          />
+                </header>
                 <field name="name" />
                 <field name="provider_id" />
                 <field name="model_use" />
+                <field name="supports_image_output" optional="hide" />
                 <field name="is_default" />
+                <field name="is_testable" column_invisible="1" />
+                <field
+          name="test_state"
+          widget="badge"
+          decoration-success="test_state == 'success'"
+          decoration-warning="test_state == 'warning'"
+          decoration-danger="test_state == 'failed'"
+        />
+                <field name="test_date" optional="hide" />
+                <field name="test_message" optional="hide" />
                 <field name="active" />
             </list>
         </field>
@@ -86,6 +135,16 @@
           domain="[('is_default', '=', True)]"
         />
                 <filter
+          string="Test Failed"
+          name="test_failed"
+          domain="[('test_state', 'in', ['failed', 'warning'])]"
+        />
+                <filter
+          string="Never Tested"
+          name="test_untested"
+          domain="[('test_state', '=', 'untested')]"
+        />
+                <filter
           string="Archived"
           name="inactive"
           domain="[('active', '=', False)]"
@@ -100,6 +159,11 @@
             string="Usage"
             name="group_by_use"
             context="{'group_by': 'model_use'}"
+          />
+                    <filter
+            string="Test Status"
+            name="group_by_test_state"
+            context="{'group_by': 'test_state'}"
           />
                 </group>
             </search>

@@ -60,6 +60,22 @@
                                     <field name="name" />
                                     <field name="model_use" />
                                     <field name="is_default" />
+                                    <field
+                    name="test_state"
+                    widget="badge"
+                    readonly="1"
+                    decoration-success="test_state == 'success'"
+                    decoration-warning="test_state == 'warning'"
+                    decoration-danger="test_state == 'failed'"
+                  />
+                                    <field name="is_testable" column_invisible="1" />
+                                    <button
+                    name="action_test_connectivity"
+                    type="object"
+                    icon="fa-plug"
+                    title="Test Connectivity"
+                    invisible="not is_testable"
+                  />
                                     <field name="active" />
                                 </list>
                             </field>

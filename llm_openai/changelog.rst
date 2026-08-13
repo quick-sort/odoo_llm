@@ -1,3 +1,9 @@
+19.0.1.5.0 (2026-08-12)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] ``openai_test_model()`` connectivity probe: image generation models are tested on ``/images/generations``, other usages reuse the base module probes
+* [IMP] A 4xx answer from the model is reported as "partially reachable", since it proves the endpoint and credentials are valid
+
 18.0.1.4.0 (2026-01-17)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

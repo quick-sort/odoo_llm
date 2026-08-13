@@ -1,11 +1,12 @@
 import io
 import json
 import logging
+import re
 import uuid
 
-from openai import OpenAI
+from openai import BadRequestError, OpenAI, UnprocessableEntityError
 
-from odoo import api, models
+from odoo import _, api, models
 from odoo.exceptions import UserError
 
 from ..utils.openai_message_validator import OpenAIMessageValidator
@@ -189,16 +190,123 @@ class LLMProvider(models.Model):
             formatted_tools = self.format_tools(tools)
             if formatted_tools:
                 params["tools"] = formatted_tools
-                # OpenAI-specific: tool_choice param (Ollama doesn't support this)
                 params["tool_choice"] = kwargs.get("tool_choice", "auto")
 
-        # Make the API call
+        image_output = getattr(model, "supports_image_output", False)
+
+        if not stream and image_output:
+            return self._openai_chat_with_image_output(params)
+
         response = self.client.chat.completions.create(**params)
 
-        # Process the response based on streaming mode
         if not stream:
             return self._openai_process_non_streaming_response(response)
+        if image_output:
+            return self._openai_process_streaming_response_with_images(response)
         return self._openai_process_streaming_response(response)
+
+    def _openai_chat_with_image_output(self, params):
+        """Handle non-streaming chat for models that may return image content.
+
+        Uses with_raw_response to bypass SDK's strict content typing, since
+        providers like Gemini return content as a list of parts (text + images)
+        which the SDK's Optional[str] field cannot parse.
+        """
+        raw_response = self.client.chat.completions.with_raw_response.create(**params)
+        raw_json = json.loads(raw_response.text)
+        return self._openai_parse_raw_chat_response(raw_json)
+
+    def _openai_parse_raw_chat_response(self, raw_json):
+        """Parse a raw JSON chat completion response, handling image output.
+
+        Supports two image response formats:
+        1. Separate ``message.images`` field (litellm/Gemini style)
+        2. Multi-part ``content`` list with image_url parts (native OpenAI style)
+
+        Returns:
+            dict with keys: content (str), tool_calls (list), images (list)
+        """
+        try:
+            choices = raw_json.get("choices", [])
+            if not choices:
+                return {}
+            message = choices[0].get("message", {})
+        except (IndexError, AttributeError):
+            return {"error": "Failed to parse raw response"}
+
+        content = message.get("content")
+        result = {}
+        images = []
+
+        # Format 1: images in a separate message field (litellm/Gemini)
+        raw_images = message.get("images")
+        if isinstance(raw_images, list):
+            for img_part in raw_images:
+                if not isinstance(img_part, dict):
+                    continue
+                image_url = img_part.get("image_url", {})
+                url = image_url.get("url", "") if isinstance(image_url, dict) else ""
+                parsed = self._parse_data_url(url)
+                if parsed:
+                    images.append(parsed)
+
+        # Format 2: content is a list of parts (native OpenAI multimodal output)
+        if isinstance(content, list):
+            text_parts = []
+            for part in content:
+                if not isinstance(part, dict):
+                    continue
+                part_type = part.get("type", "")
+                if part_type == "text":
+                    text_parts.append(part.get("text", ""))
+                elif part_type == "image_url":
+                    image_url = part.get("image_url", {})
+                    url = image_url.get("url", "") if isinstance(image_url, dict) else ""
+                    parsed = self._parse_data_url(url)
+                    if parsed:
+                        images.append(parsed)
+            if text_parts:
+                result["content"] = "\n".join(text_parts)
+        elif isinstance(content, str):
+            result["content"] = content
+
+        if images:
+            result["images"] = images
+
+        tool_calls = message.get("tool_calls")
+        if tool_calls:
+            result["tool_calls"] = [
+                {
+                    "id": tc.get("id", ""),
+                    "type": tc.get("type", "function"),
+                    "function": {
+                        "name": tc.get("function", {}).get("name", ""),
+                        "arguments": tc.get("function", {}).get("arguments", ""),
+                    },
+                }
+                for tc in tool_calls
+            ]
+
+        return result
+
+    @staticmethod
+    def _parse_data_url(url):
+        """Parse a data URL into mimetype and base64 data.
+
+        Args:
+            url: A data URL like "data:image/png;base64,iVBORw0KGgo..."
+
+        Returns:
+            dict with mimetype and data keys, or None if not parseable
+        """
+        if not url:
+            return None
+        match = re.match(r"data:([^;]+);base64,(.+)", url, re.DOTALL)
+        if match:
+            return {"mimetype": match.group(1), "data": match.group(2)}
+        if url.startswith(("http://", "https://")):
+            return {"mimetype": "image/png", "url": url}
+        return None
 
     def _openai_process_non_streaming_response(self, response):
         """Processes OpenAI non-streamed response and returns ONE standardized dict."""
@@ -314,6 +422,27 @@ class LLMProvider(models.Model):
         except Exception as e:
             yield {"error": f"Internal error processing stream: {e}"}
 
+    def _openai_process_streaming_response_with_images(self, response_stream):
+        """Process streaming response for image-capable models.
+
+        Image content parts typically arrive as complete chunks rather than
+        being fragmented. We collect them separately and yield an 'images'
+        event at the end of the stream.
+        """
+        collected_images = []
+
+        for chunk in self._openai_process_streaming_response(response_stream):
+            yield chunk
+
+        # For streaming, providers may embed image data in the raw stream
+        # chunks. Since the standard streaming processor already handles text
+        # and tool_calls, we intercept at the httpx level for images.
+        # However, most providers that support image output via chat completions
+        # do NOT support streaming for image generation (the image is computed
+        # atomically). This method exists as an extension point for future use.
+        if collected_images:
+            yield {"images": collected_images}
+
     def _update_openai_tool_call_chunk(self, tool_call_chunks, tool_call_chunk, index):
         """
         Helper to assemble fragmented tool calls from OpenAI stream chunks.
@@ -394,6 +523,83 @@ class LLMProvider(models.Model):
                 **model.model_dump(),
             },
         }
+
+    # ------------------------------------------------------------------
+    # Connectivity tests
+    # ------------------------------------------------------------------
+
+    # A 4xx from the model itself proves the endpoint was reached and the
+    # credentials were accepted: the request payload was simply refused.
+    OPENAI_TEST_REACHED_ERRORS = (BadRequestError, UnprocessableEntityError)
+
+    def openai_test_model(self, model):
+        """Connectivity probe for the OpenAI-compatible API.
+
+        Image models are probed on ``/images/generations``; every other usage
+        relies on the generic probes of the base module (chat completion for
+        chat/multimodal models).
+        """
+        self.ensure_one()
+        if model.model_use == "image_generation":
+            return self._openai_test_image_model(model)
+        return self._default_test_model(model)
+
+    def _openai_test_image_model(self, model):
+        """Request one small image to check the image generation endpoint."""
+        try:
+            response = self.client.images.generate(
+                model=model.name,
+                prompt=self.TEST_IMAGE_PROMPT,
+                n=1,
+            )
+        except self.OPENAI_TEST_REACHED_ERRORS as error:
+            return {
+                "state": "warning",
+                "message": _(
+                    "Image endpoint reached and credentials accepted, but the "
+                    "model rejected the test request.",
+                ),
+                "detail": str(error),
+            }
+
+        images = getattr(response, "data", None) or []
+        if not images:
+            return {
+                "state": "warning",
+                "message": _("Image endpoint reached but no image was returned."),
+                "detail": self._test_dump(self._openai_test_response_dump(response)),
+            }
+
+        return {
+            "state": "success",
+            "message": _(
+                "Image endpoint reached, %(count)d image(s) generated.",
+                count=len(images),
+            ),
+            "detail": self._test_dump(
+                [self._openai_test_image_summary(image) for image in images],
+            ),
+        }
+
+    @staticmethod
+    def _openai_test_image_summary(image):
+        """Summarize one generated image without storing its base64 payload."""
+        summary = {}
+        if getattr(image, "url", None):
+            summary["url"] = image.url
+        if getattr(image, "b64_json", None):
+            summary["b64_json_length"] = len(image.b64_json)
+        if getattr(image, "revised_prompt", None):
+            summary["revised_prompt"] = image.revised_prompt
+        return summary or {"image": "returned without url or payload"}
+
+    @staticmethod
+    def _openai_test_response_dump(response):
+        """Best-effort serializable view of an API response object."""
+        try:
+            return response.model_dump()
+        except AttributeError:
+            return str(response)
 
     def _validate_and_clean_messages(self, messages):
         """

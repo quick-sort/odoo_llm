@@ -1,3 +1,12 @@
+19.0.1.8.0 (2026-08-12)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Connectivity test on llm.model (``action_test_connectivity``) for chat, multimodal, image generation and generic generation models
+* [ADD] New fields test_state / test_date / test_message / test_detail / is_testable on llm.model, with form, list and search view support
+* [ADD] Per-model test button in the model list of the provider form
+* [ADD] Provider extension points: ``<service>_test_model()``, ``_can_test_model()``, ``_get_test_handler_name()`` and ``_has_service_method()``
+* [FIX] llm.provider.get_model() filtered on the nonexistent ``default`` field instead of ``is_default``
+
 18.0.1.7.0 (2026-01-17)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

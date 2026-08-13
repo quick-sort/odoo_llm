@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from odoo import _, api, fields, models
@@ -8,6 +9,12 @@ class LLMProvider(models.Model):
     _name = "llm.provider"
     _inherit = ["mail.thread"]
     _description = "LLM Provider"
+
+    # Connectivity test payloads: kept deliberately tiny, the goal is to reach
+    # the endpoint, not to get a useful answer.
+    TEST_CHAT_PROMPT = "ping"
+    TEST_CHAT_MAX_TOKENS = 16
+    TEST_IMAGE_PROMPT = "a small red circle on a white background"
 
     name = fields.Char(required=True)
     service = fields.Selection(
@@ -58,6 +65,17 @@ class LLMProvider(models.Model):
             )
 
         return getattr(record, service_method)(*args, **kwargs)
+
+    def _has_service_method(self, method, record=None):
+        """Check whether the current service implements ``<service>_<method>``.
+
+        Useful to probe optional capabilities without triggering the
+        ``NotImplementedError`` raised by :meth:`_dispatch`.
+        """
+        if not self.service:
+            return False
+        record = record if record else self
+        return hasattr(record, f"{self.service}_{method}")
 
     @api.model
     def _selection_service(self):
@@ -179,6 +197,215 @@ class LLMProvider(models.Model):
     def list_models(self, model_id=None):
         """List available models from the provider"""
         return self._dispatch("models", model_id=model_id)
+
+    # ------------------------------------------------------------------
+    # Connectivity tests
+    # ------------------------------------------------------------------
+
+    def test_model(self, model):
+        """Probe the provider API for ``model`` and report reachability.
+
+        A provider may implement ``<service>_test_model(model)`` to run a
+        cheaper or more accurate probe (e.g. a dedicated health endpoint).
+        Otherwise the generic probe selected by ``model.model_use`` is used.
+
+        Args:
+            model: llm.model record to probe
+
+        Returns:
+            dict with keys:
+                - state: "success", "warning" or "failed"
+                - message: short human readable summary
+                - detail: optional longer text (excerpt of the raw response)
+
+        Raises:
+            Any provider/API exception. Callers are expected to catch them
+            (see ``llm.model._run_connectivity_test``).
+        """
+        self.ensure_one()
+        if self._has_service_method("test_model"):
+            return self._dispatch("test_model", model)
+        return self._default_test_model(model)
+
+    def _default_test_model(self, model):
+        """Service-agnostic connectivity probe, routed on ``model.model_use``."""
+        handler = self._get_test_handler_name(model)
+        if not handler:
+            raise UserError(
+                _(
+                    "Connectivity test is not available for models used as '%s'.",
+                    model.model_use,
+                ),
+            )
+        return getattr(self, handler)(model)
+
+    def _can_test_model(self, model):
+        """Return True when a connectivity probe exists for ``model``.
+
+        EXTENSION POINT: override (together with ``<service>_test_model``) when
+        a service can probe usages the generic layer does not handle.
+        """
+        self.ensure_one()
+        return bool(self._get_test_handler_name(model))
+
+    def _get_test_handler_name(self, model):
+        """Map a model usage to the method probing it.
+
+        EXTENSION POINT: override to support additional usages added through
+        ``_get_available_model_usages``. Return ``False`` when the usage
+        cannot be tested.
+        """
+        return {
+            "chat": "_test_chat_model",
+            "multimodal": "_test_chat_model",
+            "image_generation": "_test_generation_model",
+            "generation": "_test_generation_model",
+        }.get(model.model_use, False)
+
+    def _test_chat_model(self, model):
+        """Send a minimal chat request to check the chat endpoint."""
+        self.ensure_one()
+        response = self.chat(
+            self.env["mail.message"],  # no history, the prompt is prepended
+            model=model,
+            stream=False,
+            prepend_messages=[{"role": "user", "content": self.TEST_CHAT_PROMPT}],
+            max_tokens=self.TEST_CHAT_MAX_TOKENS,
+        )
+
+        if not isinstance(response, dict):
+            # Defensive: a provider returning a generator for stream=False
+            return {
+                "state": "warning",
+                "message": _("Chat endpoint answered with an unexpected payload."),
+                "detail": str(response),
+            }
+
+        if response.get("error"):
+            return {
+                "state": "failed",
+                "message": _("The chat endpoint returned an error."),
+                "detail": str(response["error"]),
+            }
+
+        content = self._extract_content_text(response.get("content") or "")
+        if not content and not response.get("tool_calls"):
+            return {
+                "state": "warning",
+                "message": _("Chat endpoint reached but the answer was empty."),
+                "detail": self._test_dump(response),
+            }
+
+        return {
+            "state": "success",
+            "message": _("Chat endpoint reached, the model answered."),
+            "detail": content or self._test_dump(response),
+        }
+
+    def _test_generation_model(self, model):
+        """Run a minimal generation request (image or other binary output).
+
+        When the provider has no ``generate`` implementation, fall back to
+        checking that the model can be retrieved from the provider API: that
+        still validates credentials, base URL and model name, so the result is
+        reported as a partial success.
+        """
+        self.ensure_one()
+        try:
+            result = self.generate(self.TEST_IMAGE_PROMPT, model=model, stream=False)
+        except NotImplementedError:
+            return self._test_generation_fallback(model)
+
+        output, urls = self._test_split_generate_result(result)
+
+        if isinstance(output, dict) and output.get("error"):
+            return {
+                "state": "failed",
+                "message": _("The generation endpoint returned an error."),
+                "detail": str(output["error"]),
+            }
+
+        if not output and not urls:
+            return {
+                "state": "warning",
+                "message": _("Generation endpoint reached but nothing was returned."),
+                "detail": self._test_dump(result),
+            }
+
+        return {
+            "state": "success",
+            "message": _(
+                "Generation endpoint reached, %(count)d result(s) returned.",
+                count=len(urls) if urls else 1,
+            ),
+            "detail": self._test_dump({"output": output, "urls": urls}),
+        }
+
+    def _test_generation_fallback(self, model):
+        """Reachability check used when generation is not implemented."""
+        try:
+            available = self._test_model_is_listed(model)
+        except NotImplementedError:
+            return {
+                "state": "failed",
+                "message": _(
+                    "Service '%s' implements neither generation nor model listing, "
+                    "connectivity cannot be checked.",
+                    self.service,
+                ),
+                "detail": "",
+            }
+
+        if not available:
+            return {
+                "state": "failed",
+                "message": _(
+                    "API reached but model '%s' was not returned by the provider.",
+                    model.name,
+                ),
+                "detail": "",
+            }
+
+        return {
+            "state": "warning",
+            "message": _(
+                "API credentials valid and model '%s' exists, but service '%s' does not "
+                "implement generation, so no image was requested.",
+                model.name,
+                self.service,
+            ),
+            "detail": "",
+        }
+
+    def _test_model_is_listed(self, model):
+        """Return True when the provider API knows about ``model``."""
+        for model_data in self.list_models(model_id=model.name):
+            details = model_data.get("details") or {}
+            if (model_data.get("name") or details.get("id")) == model.name:
+                return True
+        return False
+
+    @staticmethod
+    def _test_split_generate_result(result):
+        """Normalize ``generate()`` output into an ``(output, urls)`` tuple."""
+        if isinstance(result, tuple) and len(result) == 2:
+            output, urls = result
+            return output, list(urls or [])
+        return result, []
+
+    def _test_dump(self, value):
+        """Serialize a probe payload for storage in the test details field."""
+        try:
+            return json.dumps(value, default=str, ensure_ascii=False, indent=2)
+        except (TypeError, ValueError):
+            return str(value)
+
+    def _sanitize_test_output(self, text):
+        """Strip the API key from any text before it is stored or displayed."""
+        text = text or ""
+        if self.api_key and self.api_key in text:
+            text = text.replace(self.api_key, "***")
+        return text
 
     def action_fetch_models(self):
         """Fetch models from provider and open import wizard"""
@@ -337,7 +564,7 @@ class LLMProvider(models.Model):
 
         # Filter for default model of requested type
         default_models = models.filtered(
-            lambda m: m.default and m.model_use == model_use,
+            lambda m: m.is_default and m.model_use == model_use,
         )
 
         if not default_models:
